@@ -1,0 +1,85 @@
+#!/bin/sh
+#
+# vim: set ts=4 sw=4 sts=4 noet:
+
+if test -e ./env/bin/activate
+then
+	. ./env/bin/activate
+fi
+
+working_file=`mktemp -q yapf-list-XXXXX`
+if test $? -ne 0
+then
+	echo 'failed to create temporary file'
+	exit 75
+fi
+trap 'rm -f "$working_file"' 0
+
+# Find all staged Python files, and exit early if there aren't any.
+python_files=""
+git diff --name-only --cached --diff-filter=AM | grep '\.py$' >"$working_file"
+if test ! -s "$working_file"
+then
+	exit 0
+fi
+
+# Try to make the output "prettier"
+columns=${COLUMNS:-72}
+fmt=`command -v fmt`
+if test -z "$fmt"
+then
+	fmt=fold
+fi
+
+# Check for unstaged changes to files in the index.
+python_files=`cat "$working_file"`
+changed_files=`git diff --name-only $python_files`
+if test -n "$changed_files"
+then
+	cat|$fmt -w $columns<<-EOF
+		You have unstaged changes to some files in your
+		commit; skipping auto-format. Please stage, stash,
+		or revert these changes. You may find `git stash -k`
+		helpful here.
+
+		Files with unstaged changes: $changed_files
+	EOF
+	exit 1
+fi
+
+if command -v flake8 >/dev/null
+then
+	echo 'Checking staged Python files with PEP8 violations ...'
+	rm -f "$working_file"  # flake8 appends to output-file?!
+	if ! flake8 --output-file="$working_file" $python_files
+	then
+		cat|$fmt -w $columns<<-EOF
+			PEP8 violations in staged files. Please review and
+			stage the changes.
+
+		EOF
+		cat "$working_file"
+		exit 1
+	fi
+else
+	echo 'flake8 not found, code changes could violate PEP8.'
+fi
+
+if command -v yapf >/dev/null
+then
+	echo 'Checking staged Python files for format violations ...'
+	yapf -i -r $python_files
+	changed_files=`git diff --name-only $python_files`
+	if test -n "$changed_files"
+	then
+		cat|$fmt -w $columns<<-EOF
+			Reformatted staged files that were in violation of
+			style policy.. Please review and stage the changes.
+
+			Files updated: $changed_files"
+		EOF
+		exit 1
+	fi
+else
+	echo 'yapf not found, code changes could violate style.'
+fi
