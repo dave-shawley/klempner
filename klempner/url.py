@@ -1,10 +1,12 @@
+from io import StringIO
+import os
 import urllib.parse
 try:
     from typing import Iterable, Mapping
     TEXT_TYPES = (str, )
 except ImportError:  # pragma: no cover
     from collections import Iterable, Mapping
-    TEXT_TYPES = (str, unicode)
+    TEXT_TYPES = (str, unicode)  # noqa: F821
 
 PATH_SAFE_CHARS = ':@~._-'
 
@@ -19,12 +21,27 @@ def build_url(service, *path, **query):
     :rtype: str
 
     """
-    url = ['http://', service]
-    if path:
-        url.extend('/' + urllib.parse.quote(str(p), safe=PATH_SAFE_CHARS)
-                   for p in path)
+    buf = StringIO()
+
+    env_service = service.upper()
+    buf.write(os.environ.get('{0}_SCHEME'.format(env_service), 'http'))
+    buf.write('://')
+
+    netloc = os.environ.get('{0}_HOST'.format(env_service), None)
+    if netloc is None:
+        buf.write(service)
     else:
-        url.append('/')
+        port = os.environ.get('{0}_PORT'.format(env_service), '')
+        if ':' in port:  # special case for docker's service:port format
+            buf.write(port)
+        else:
+            buf.write(netloc)
+            if port:
+                buf.write(':' + port)
+
+    buf.write('/')
+    buf.write('/'.join(
+        urllib.parse.quote(str(p), safe=PATH_SAFE_CHARS) for p in path))
 
     qtuples = []
     for name, value in query.items():
@@ -35,9 +52,7 @@ def build_url(service, *path, **query):
         else:
             qtuples.append((name, value))
     if qtuples:
-        url.extend([
-            '?',
-            urllib.parse.urlencode(qtuples, quote_via=urllib.parse.quote),
-        ])
+        buf.write('?' + urllib.parse.urlencode(qtuples,
+                                               quote_via=urllib.parse.quote))
 
-    return ''.join(url)
+    return buf.getvalue()
