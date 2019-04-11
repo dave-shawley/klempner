@@ -1,6 +1,13 @@
+from __future__ import unicode_literals
+
 from io import StringIO
 import os
-import urllib.parse
+
+try:
+    from urllib import parse
+except ImportError:
+    import urllib as parse
+
 try:
     from typing import Iterable, Mapping
     TEXT_TYPES = (str, )
@@ -41,18 +48,27 @@ def build_url(service, *path, **query):
 
     buf.write('/')
     buf.write('/'.join(
-        urllib.parse.quote(str(p), safe=PATH_SAFE_CHARS) for p in path))
+        parse.quote(str(p), safe=PATH_SAFE_CHARS) for p in path))
 
-    qtuples = []
+    query_tuples = []
     for name, value in query.items():
         if isinstance(value, Mapping):
             raise ValueError('Mapping query parameters are unsupported')
         if isinstance(value, Iterable) and not isinstance(value, TEXT_TYPES):
-            qtuples.extend((name, elm) for elm in sorted(value))
+            query_tuples.extend((name, elm) for elm in sorted(value))
         else:
-            qtuples.append((name, value))
-    if qtuples:
-        buf.write('?' + urllib.parse.urlencode(qtuples,
-                                               quote_via=urllib.parse.quote))
+            query_tuples.append((name, value))
+    if query_tuples:
+        query_tuples.sort()
+        buf.write('?')
+        buf.write('&'.join(
+            '{0}={1}'.format(_quote_query_arg(name), _quote_query_arg(value))
+            for name, value in query_tuples))
 
     return buf.getvalue()
+
+
+def _quote_query_arg(v):
+    if not isinstance(v, TEXT_TYPES):
+        v = str(v)
+    return parse.quote(v.encode('utf-8'))
