@@ -37,13 +37,14 @@ class QueryParameterTests(unittest.TestCase):
 
 class PathTests(unittest.TestCase):
     def test_that_path_elements_are_quoted(self):
-        url = klempner.build_url('some-service', 'with spaces',
-                                 'other:interesting@chars',
-                                 'unreserved-._~chars', 'quoted<>{}/chars')
+        url = klempner.build_url(
+            'some-service', 'with spaces', 'other:interesting@chars',
+            '(sub!&*+,;=!delims)', 'unreserved-._~chars', 'quoted<>{}/chars')
         self.assertEqual(
             'http://some-service'
             '/with%20spaces'
             '/other:interesting@chars'
+            '/(sub!&*+,;=!delims)'
             '/unreserved-._~chars'
             '/quoted%3C%3E%7B%7D%2Fchars',
             url,

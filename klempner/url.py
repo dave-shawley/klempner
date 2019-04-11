@@ -15,7 +15,12 @@ except ImportError:  # pragma: no cover
     from collections import Iterable, Mapping
     TEXT_TYPES = (str, unicode)  # noqa: F821
 
-PATH_SAFE_CHARS = ':@~._-'
+#    pchar         = unreserved / pct-encoded / sub-delims / ":" / "@"
+#    sub-delims    = "!" / "$" / "&" / "'" / "(" / ")"
+#                  / "*" / "+" / "," / ";" / "="
+#    unreserved    = ALPHA / DIGIT / "-" / "." / "_" / "~"
+PATH_SAFE_CHARS = ":@!$&'()*+,;=-._~"
+"""Safe characters for path elements."""
 
 
 def build_url(service, *path, **query):
