@@ -7,6 +7,10 @@ import klempner
 
 
 class SimpleEnvironmentTests(helpers.EnvironmentMixin, unittest.TestCase):
+    def setUp(self):
+        super(SimpleEnvironmentTests, self).setUp()
+        klempner.reset_cache()
+
     def test_that_scheme_envvar_is_honored(self):
         self.setenv('ACCOUNT_SCHEME', 'https')
         url = klempner.build_url('account')

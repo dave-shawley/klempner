@@ -10,7 +10,8 @@ import klempner
 class SimpleConsulTests(helpers.EnvironmentMixin, unittest.TestCase):
     def setUp(self):
         super(SimpleConsulTests, self).setUp()
-        self.setenv('KLEMPNER_DISCOVERY', 'consul')
+        klempner.reset_cache()
+        self.setenv('KLEMPNER_DISCOVERY', klempner.DiscoveryMethod.CONSUL)
         self.setenv('CONSUL_DATACENTER', 'development')
 
     def test_that_consul_datacenter_environment_sets_datacenter_name(self):

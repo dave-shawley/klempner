@@ -6,6 +6,10 @@ import klempner
 
 
 class QueryParameterTests(unittest.TestCase):
+    def setUp(self):
+        super(QueryParameterTests, self).setUp()
+        klempner.reset_cache()
+
     def test_that_query_parameters_are_encoded(self):
         url = klempner.build_url('some-service', arg1='value',
                                  arg2='with space', arg3='r\u00E9sum\u00E9')
@@ -36,6 +40,10 @@ class QueryParameterTests(unittest.TestCase):
 
 
 class PathTests(unittest.TestCase):
+    def setUp(self):
+        super(PathTests, self).setUp()
+        klempner.reset_cache()
+
     def test_that_path_elements_are_quoted(self):
         url = klempner.build_url(
             'some-service', 'with spaces', 'other:interesting@chars',

@@ -12,9 +12,17 @@ except ImportError:  # pragma: no cover
 try:
     from typing import Iterable, Mapping
     TEXT_TYPES = (str, )
+
+    def _env_val(v):
+        return v
+
 except ImportError:  # pragma: no cover
     from collections import Iterable, Mapping
     TEXT_TYPES = (str, unicode)  # noqa: F821
+
+    def _env_val(v):
+        return v.decode('utf-8')
+
 
 #    pchar         = unreserved / pct-encoded / sub-delims / ":" / "@"
 #    sub-delims    = "!" / "$" / "&" / "'" / "(" / ")"
@@ -22,6 +30,31 @@ except ImportError:  # pragma: no cover
 #    unreserved    = ALPHA / DIGIT / "-" / "." / "_" / "~"
 PATH_SAFE_CHARS = ":@!$&'()*+,;=-._~"
 """Safe characters for path elements."""
+
+
+class DiscoveryMethod(object):
+    """Available discovery methods."""
+
+    CONSUL = 'consul'
+    """Build consul-based service names."""
+
+    AVAILABLE = (CONSUL, )
+
+
+_state = {}
+
+
+def reset_cache():
+    """Reset internal caches.
+
+    You need to call this function when any of the following environment
+    variable values change:
+
+    - :env:`KLEMPNER_DISCOVERY`
+    - :env:`CONSUL_DATACENTER`
+
+    """
+    _state.clear()
 
 
 def build_url(service, *path, **query):
@@ -66,23 +99,15 @@ def _write_network_portion(buf, service):
     :param str service: name of the service that is being looked up
 
     """
-    logger = logging.getLogger(__package__)
     env_service = service.upper()
-    discovery_style = os.environ.get('KLEMPNER_DISCOVERY', None)
-    if discovery_style == 'consul':
-        try:
-            datacenter = os.environ['CONSUL_DATACENTER']
-        except KeyError:
-            logger.warning('discovery style set to consul but '
-                           'CONSUL_DATACENTER is not set: falling back to '
-                           'simple URL building')
-        else:
-            buf.write('http://')
-            buf.write(service)
-            buf.write('.service.')
-            buf.write(datacenter)
-            buf.write('.consul')
-            return
+    details = _determine_discovery_method()
+    if details[0] == DiscoveryMethod.CONSUL:
+        buf.write('http://')
+        buf.write(service)
+        buf.write('.service.')
+        buf.write(details[1])
+        buf.write('.consul')
+        return
 
     buf.write(os.environ.get('{0}_SCHEME'.format(env_service), 'http'))
     buf.write('://')
@@ -97,6 +122,28 @@ def _write_network_portion(buf, service):
             buf.write(netloc)
             if port:
                 buf.write(':' + port)
+
+
+def _determine_discovery_method():
+    try:
+        return _state['discovery-details']
+    except KeyError:
+        pass
+
+    _state['discovery-details'] = (None, )
+
+    logger = logging.getLogger(__package__)
+    discovery_style = os.environ.get('KLEMPNER_DISCOVERY', None)
+    if discovery_style == DiscoveryMethod.CONSUL:
+        try:
+            datacenter = os.environ['CONSUL_DATACENTER']
+            _state['discovery-details'] = discovery_style, _env_val(datacenter)
+        except KeyError:
+            logger.warning('discovery style set to consul but '
+                           'CONSUL_DATACENTER is not set: falling back to '
+                           'simple URL building')
+
+    return _state['discovery-details']
 
 
 def _quote_query_arg(v):
