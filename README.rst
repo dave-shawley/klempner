@@ -35,7 +35,7 @@ Consul service discovery
 
 .. code-block:: python
 
-   os.environ['ENVIRONMENT'] = 'production'
+   os.environ['CONSUL_DATACENTER'] = 'production'
    os.environ['KLEMPNER_DISCOVERY'] = 'consul'
    url = klempner.build_url('account')
    print(url)  # http://account.service.production.consul/
