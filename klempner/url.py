@@ -36,9 +36,12 @@ class DiscoveryMethod(object):
     """Available discovery methods."""
 
     CONSUL = 'consul'
-    """Build consul-based service names."""
+    """Build consul-based service URLs."""
 
-    AVAILABLE = (CONSUL, )
+    K8S = 'kubernetes'
+    """Build Kubernetes cluster-based service URLs."""
+
+    AVAILABLE = (CONSUL, K8S)
 
 
 _state = {}
@@ -107,21 +110,25 @@ def _write_network_portion(buf, service):
         buf.write('.service.')
         buf.write(details[1])
         buf.write('.consul')
-        return
-
-    buf.write(os.environ.get('{0}_SCHEME'.format(env_service), 'http'))
-    buf.write('://')
-    netloc = os.environ.get('{0}_HOST'.format(env_service), None)
-    if netloc is None:
-        buf.write(service)
+    elif details[0] == DiscoveryMethod.K8S:
+        buf.write('http://')
+        buf.write(service + '.')
+        buf.write(details[1])
+        buf.write('.svc.cluster.local')
     else:
-        port = os.environ.get('{0}_PORT'.format(env_service), '')
-        if ':' in port:  # special case for docker's service:port format
-            buf.write(port)
+        buf.write(os.environ.get('{0}_SCHEME'.format(env_service), 'http'))
+        buf.write('://')
+        netloc = os.environ.get('{0}_HOST'.format(env_service), None)
+        if netloc is None:
+            buf.write(service)
         else:
-            buf.write(netloc)
-            if port:
-                buf.write(':' + port)
+            port = os.environ.get('{0}_PORT'.format(env_service), '')
+            if ':' in port:  # special case for docker's service:port format
+                buf.write(port)
+            else:
+                buf.write(netloc)
+                if port:
+                    buf.write(':' + port)
 
 
 def _determine_discovery_method():
@@ -139,9 +146,12 @@ def _determine_discovery_method():
             datacenter = os.environ['CONSUL_DATACENTER']
             _state['discovery-details'] = discovery_style, _env_val(datacenter)
         except KeyError:
-            logger.warning('discovery style set to consul but '
-                           'CONSUL_DATACENTER is not set: falling back to '
-                           'simple URL building')
+            logger.warning(
+                'discovery style set to %s but CONSUL_DATACENTER is not set: '
+                'falling back to simple URL building', discovery_style)
+    elif discovery_style == DiscoveryMethod.K8S:
+        namespace = os.environ.get('KUBERNETES_NAMESPACE', 'default')
+        _state['discovery-details'] = discovery_style, _env_val(namespace)
 
     return _state['discovery-details']
 
