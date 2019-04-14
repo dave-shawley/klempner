@@ -32,13 +32,29 @@ by name.
 
 Consul service discovery
 ~~~~~~~~~~~~~~~~~~~~~~~~
+The basic form of using consul is not *discovery* at all.  It is simply
+URL construction that follows the naming convention that Consul's DNS
+interface exposes.
 
 .. code-block:: python
 
-   os.environ['CONSUL_DATACENTER'] = 'production'
    os.environ['KLEMPNER_DISCOVERY'] = 'consul'
+   os.environ['CONSUL_DATACENTER'] = 'production'
    url = klempner.build_url('account')
    print(url)  # http://account.service.production.consul/
+
+If you append ``+agent`` to the discovery method, then ``build_url`` will
+connect to a Consul agent and retrieve the port number for services.
+
+.. code-block:: python
+
+   os.environ['KLEMPNER_DISCOVERY'] = 'consul+agent'
+   url = klempner.build_url('account')
+   print(url)  # http://account.service.production.consul:8000/
+
+The Consul agent will connect to the agent specified by the
+``CONSUL_HTTP_ADDR`` environment variable.  If the environment variable is
+not specified, then the agent on the localhost will be used.
 
 Kubernetes service discovery
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -51,8 +67,8 @@ Kubernetes service discovery
 
 .. code-block:: python
 
-   os.environ['KUBERNETES_NAMESPACE'] = 'my-team'
    os.environ['KLEMPNER_DISCOVERY'] = 'kubernetes'
+   os.environ['KUBERNETES_NAMESPACE'] = 'my-team'
    url = klempner.build_url('account')
    print(url)  # http://account.my-team.svc.cluster.local/
 
@@ -61,8 +77,8 @@ Docker-compose service discovery
 
 .. code-block:: python
 
-   os.environ['COMPOSE_PROJECT_NAME'] = 'foo'
    os.environ['KLEMPNER_DISCOVERY'] = 'docker-compose'
+   os.environ['COMPOSE_PROJECT_NAME'] = 'foo'
    url = klempner.build_url('account')
    print(url)  # http://127.0.0.1:32867/
 

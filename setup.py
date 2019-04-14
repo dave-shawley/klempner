@@ -13,6 +13,9 @@ setuptools.setup(
     author='Dave Shawley',
     author_email='daveshawley@gmail.com',
     packages=['klempner'],
+    install_requires=[
+        'requests==2.21.0',
+    ],
     extras_require={
         'dev': [
             'coverage==4.5.3',

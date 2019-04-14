@@ -1,10 +1,13 @@
 from __future__ import unicode_literals
 
+import os
+import random
 import unittest
 import uuid
 
 from tests import helpers
 import klempner
+import requests
 
 
 class SimpleConsulTests(helpers.EnvironmentMixin, unittest.TestCase):
@@ -23,3 +26,67 @@ class SimpleConsulTests(helpers.EnvironmentMixin, unittest.TestCase):
     def test_that_consul_discovery_is_disabled_when_envvar_is_not_set(self):
         self.unsetenv('CONSUL_DATACENTER')
         self.assertEqual('http://account/', klempner.build_url('account'))
+
+
+@unittest.skipUnless('CONSUL_HTTP_ADDR' in os.environ,
+                     'Consul agent is not present')
+class AgentBasedTests(helpers.EnvironmentMixin, unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        super(AgentBasedTests, cls).setUpClass()
+        cls.session = requests.Session()
+
+        cls.agent_url = 'http://{0}/v1/agent'.format(
+            os.environ['CONSUL_HTTP_ADDR'])
+
+        response = cls.session.get(cls.agent_url + '/self')
+        response.raise_for_status()
+        body = response.json()
+        cls.datacenter = body['Config']['Datacenter']
+
+    def setUp(self):
+        super(AgentBasedTests, self).setUp()
+        klempner.reset_cache()
+        self.setenv('KLEMPNER_DISCOVERY',
+                    klempner.DiscoveryMethod.CONSUL_AGENT)
+        self.unsetenv('CONSUL_DATACENTER')
+        self._service_ids = set()
+
+    def tearDown(self):
+        super(AgentBasedTests, self).tearDown()
+        for service_id in list(self._service_ids):
+            self.deregister_service(service_id, ignore_error=True)
+
+    def register_service(self, service_name):
+        service_id = str(uuid.uuid4())
+        service_details = {
+            'ID': service_id,
+            'Name': '{0}-{1}'.format(service_name, service_id),
+            'Address': '10.0.0.1',
+            'Port': random.randint(10000, 20000),
+            'Datacenter': self.datacenter,
+        }
+        response = self.session.put(self.agent_url + '/service/register',
+                                    json=service_details)
+        response.raise_for_status()
+        self._service_ids.add(service_id)
+        return service_details
+
+    def deregister_service(self, service_id, ignore_error=False):
+        response = self.session.put(
+            self.agent_url + '/service/deregister/{0}'.format(service_id))
+        if not ignore_error:
+            response.raise_for_status()
+        self._service_ids.discard(service_id)
+
+    def test_that_details_are_fetched_from_consul_agent(self):
+        service_info = self.register_service('my-service')
+        self.assertEqual(
+            'http://{Name}.service.{Datacenter}.consul:{Port}/'.format(
+                **service_info),
+            klempner.build_url(service_info['Name']),
+        )
+
+    def test_that_nonexistent_service_raises_exception(self):
+        with self.assertRaises(klempner.ServiceNotFoundError):
+            klempner.build_url(str(uuid.uuid4()))
