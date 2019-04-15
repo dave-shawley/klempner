@@ -10,8 +10,8 @@ URL building
 
 .. code-block:: python
 
-   url = klempner.build_url('account', 'path', 'with spaces',
-                            query='arg',  multi=['arg', 'support'])
+   url = klempner.url.build_url('account', 'path', 'with spaces',
+                                query='arg',  multi=['arg', 'support'])
    print(url)
    # http://account/path/with%20spaces?query=arg&multi=arg&multi=support
 
@@ -23,7 +23,7 @@ Unconfigured usage
 
 .. code-block:: python
 
-   url = klempner.build_url('account')
+   url = klempner.url.build_url('account')
    print(url)  # http://account/
 
 This isn't very useful but if you do not configure the discovery mechanism,
@@ -40,7 +40,7 @@ interface exposes.
 
    os.environ['KLEMPNER_DISCOVERY'] = 'consul'
    os.environ['CONSUL_DATACENTER'] = 'production'
-   url = klempner.build_url('account')
+   url = klempner.url.build_url('account')
    print(url)  # http://account.service.production.consul/
 
 If you append ``+agent`` to the discovery method, then ``build_url`` will
@@ -49,7 +49,7 @@ connect to a Consul agent and retrieve the port number for services.
 .. code-block:: python
 
    os.environ['KLEMPNER_DISCOVERY'] = 'consul+agent'
-   url = klempner.build_url('account')
+   url = klempner.url.build_url('account')
    print(url)  # http://account.service.production.consul:8000/
 
 The Consul agent will connect to the agent specified by the
@@ -62,14 +62,14 @@ Kubernetes service discovery
 .. code-block:: python
 
    os.environ['KLEMPNER_DISCOVERY'] = 'kubernetes'
-   url = klempner.build_url('account')
+   url = klempner.url.build_url('account')
    print(url)  # http://account.default.svc.cluster.local/
 
 .. code-block:: python
 
    os.environ['KLEMPNER_DISCOVERY'] = 'kubernetes'
    os.environ['KUBERNETES_NAMESPACE'] = 'my-team'
-   url = klempner.build_url('account')
+   url = klempner.url.build_url('account')
    print(url)  # http://account.my-team.svc.cluster.local/
 
 Docker-compose service discovery
@@ -79,7 +79,7 @@ Docker-compose service discovery
 
    os.environ['KLEMPNER_DISCOVERY'] = 'docker-compose'
    os.environ['COMPOSE_PROJECT_NAME'] = 'foo'
-   url = klempner.build_url('account')
+   url = klempner.url.build_url('account')
    print(url)  # http://127.0.0.1:32867/
 
 This discovery mechanism discovers IP and port numbers for services using
@@ -94,5 +94,5 @@ Environment variable discovery
 
    os.environ['ACCOUNT_HOST'] = '10.2.12.23'
    os.environ['ACCOUNT_PORT'] = '11223'
-   url = klempner.build_url('account')
+   url = klempner.url.build_url('account')
    print(url)  # http://10.2.12.23:11223/

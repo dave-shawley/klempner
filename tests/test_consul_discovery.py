@@ -5,27 +5,29 @@ import random
 import unittest
 import uuid
 
-from tests import helpers
-import klempner
 import requests
+
+from tests import helpers
+import klempner.errors
+import klempner.url
 
 
 class SimpleConsulTests(helpers.EnvironmentMixin, unittest.TestCase):
     def setUp(self):
         super(SimpleConsulTests, self).setUp()
-        klempner.reset_cache()
-        self.setenv('KLEMPNER_DISCOVERY', klempner.DiscoveryMethod.CONSUL)
+        klempner.url.reset_cache()
+        self.setenv('KLEMPNER_DISCOVERY', klempner.url.DiscoveryMethod.CONSUL)
         self.setenv('CONSUL_DATACENTER', 'development')
 
     def test_that_consul_datacenter_environment_sets_datacenter_name(self):
         env = str(uuid.uuid4())
         self.setenv('CONSUL_DATACENTER', env)
         self.assertEqual('http://account.service.{0}.consul/'.format(env),
-                         klempner.build_url('account'))
+                         klempner.url.build_url('account'))
 
     def test_that_consul_discovery_is_disabled_when_envvar_is_not_set(self):
         self.unsetenv('CONSUL_DATACENTER')
-        self.assertEqual('http://account/', klempner.build_url('account'))
+        self.assertEqual('http://account/', klempner.url.build_url('account'))
 
 
 @unittest.skipUnless('CONSUL_HTTP_ADDR' in os.environ,
@@ -46,9 +48,9 @@ class AgentBasedTests(helpers.EnvironmentMixin, unittest.TestCase):
 
     def setUp(self):
         super(AgentBasedTests, self).setUp()
-        klempner.reset_cache()
+        klempner.url.reset_cache()
         self.setenv('KLEMPNER_DISCOVERY',
-                    klempner.DiscoveryMethod.CONSUL_AGENT)
+                    klempner.url.DiscoveryMethod.CONSUL_AGENT)
         self.unsetenv('CONSUL_DATACENTER')
         self._service_ids = set()
 
@@ -84,9 +86,9 @@ class AgentBasedTests(helpers.EnvironmentMixin, unittest.TestCase):
         self.assertEqual(
             'http://{Name}.service.{Datacenter}.consul:{Port}/'.format(
                 **service_info),
-            klempner.build_url(service_info['Name']),
+            klempner.url.build_url(service_info['Name']),
         )
 
     def test_that_nonexistent_service_raises_exception(self):
-        with self.assertRaises(klempner.ServiceNotFoundError):
-            klempner.build_url(str(uuid.uuid4()))
+        with self.assertRaises(klempner.errors.ServiceNotFoundError):
+            klempner.url.build_url(str(uuid.uuid4()))
