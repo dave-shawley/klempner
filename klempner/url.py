@@ -3,25 +3,9 @@ from __future__ import unicode_literals
 import logging
 import os
 
-try:
-    from io import StringIO
-    from urllib.parse import quote, urlparse, urlunparse
-except ImportError:  # pragma: no cover
-    from StringIO import StringIO
-    from urllib import quote
-    from urlparse import urlparse, urlunparse
-
-try:
-    from typing import Iterable, Mapping
-    TEXT_TYPES = (str, )
-
-except ImportError:  # pragma: no cover
-    from collections import Iterable, Mapping
-    TEXT_TYPES = (str, unicode)  # noqa: F821
-
 import requests.adapters
 
-from klempner import errors
+from klempner import compat, errors
 
 #    pchar         = unreserved / pct-encoded / sub-delims / ":" / "@"
 #    sub-delims    = "!" / "$" / "&" / "'" / "(" / ")"
@@ -56,9 +40,10 @@ class ConsulAgentAdapter(requests.adapters.HTTPAdapter):
 
     def send(self, request, stream=False, timeout=None, verify=True, cert=None,
              proxies=None):
-        _, _, path, params, query, fragment = urlparse(request.url)
-        request.url = urlunparse(('http', os.environ['CONSUL_HTTP_ADDR'], path,
-                                  params, query, fragment))
+        _, _, path, params, query, fragment = compat.urlparse(request.url)
+        request.url = compat.urlunparse(
+            ('http', os.environ['CONSUL_HTTP_ADDR'], path, params, query,
+             fragment))
         return super(ConsulAgentAdapter, self).send(
             request, stream=stream, timeout=timeout, verify=verify, cert=cert,
             proxies=proxies)  # yapf: disable
@@ -140,16 +125,18 @@ def build_url(service, *path, **query):
     :rtype: str
 
     """
-    buf = StringIO()
+    buf = compat.StringIO()
     _write_network_portion(buf, service)
     buf.write('/')
-    buf.write('/'.join(quote(str(p), safe=PATH_SAFE_CHARS) for p in path))
+    buf.write('/'.join(
+        compat.quote(str(p), safe=PATH_SAFE_CHARS) for p in path))
 
     query_tuples = []
     for name, value in query.items():
-        if isinstance(value, Mapping):
+        if isinstance(value, compat.Mapping):
             raise ValueError('Mapping query parameters are unsupported')
-        if isinstance(value, Iterable) and not isinstance(value, TEXT_TYPES):
+        if (isinstance(value, compat.Iterable)
+                and not isinstance(value, compat.TEXT_TYPES)):
             query_tuples.extend((name, elm) for elm in sorted(value))
         else:
             query_tuples.append((name, value))
@@ -166,8 +153,8 @@ def build_url(service, *path, **query):
 def _write_network_portion(buf, service):
     """Add the discovered network portion to `buf`.
 
-    :param io.StringIO buf: buffer to write the discovered network
-        details to
+    :param klempner.compat.StringIO buf: buffer to write the discovered
+        network details to
     :param str service: name of the service that is being looked up
 
     """
@@ -216,6 +203,6 @@ def _write_network_portion(buf, service):
 
 
 def _quote_query_arg(v):
-    if not isinstance(v, TEXT_TYPES):
+    if not isinstance(v, compat.TEXT_TYPES):
         v = str(v)
-    return quote(v.encode('utf-8'))
+    return compat.quote(v.encode('utf-8'))
