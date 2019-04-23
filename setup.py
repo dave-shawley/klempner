@@ -14,6 +14,7 @@ setuptools.setup(
     author_email='daveshawley@gmail.com',
     packages=['klempner'],
     install_requires=[
+        'cachetools==3.1.0',
         'requests==2.21.0',
     ],
     extras_require={

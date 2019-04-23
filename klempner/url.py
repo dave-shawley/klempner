@@ -5,6 +5,7 @@ import os
 
 import requests.adapters
 
+import cachetools
 from klempner import compat, errors
 
 #    pchar         = unreserved / pct-encoded / sub-delims / ":" / "@"
@@ -62,6 +63,7 @@ class State(object):
     def __init__(self):
         self.discovery_style = None
         self.discovery_parameters = tuple()
+        self.discovery_cache = cachetools.TTLCache(50, 300)
         self.logger = logging.getLogger(__package__)
         self.session = requests.Session()
         self.session.mount('consul://', ConsulAgentAdapter())
@@ -69,6 +71,7 @@ class State(object):
     def clear(self):
         self.session.close()
         self.discovery_style = None
+        self.discovery_cache.clear()
 
     def determine_discovery_method(self):
         if self.discovery_style is not None:
@@ -168,10 +171,15 @@ def _write_network_portion(buf, service):
         buf.write(details[1])
         buf.write('.consul')
     elif details[0] == DiscoveryMethod.CONSUL_AGENT:
-        response = _state.session.get(
-            'consul://agent/v1/catalog/service/{0}'.format(service))
-        response.raise_for_status()
-        body = response.json()
+        sentinel = object()
+        body = _state.discovery_cache.get(service, sentinel)
+        if body is sentinel:
+            response = _state.session.get(
+                'consul://agent/v1/catalog/service/{0}'.format(service))
+            response.raise_for_status()
+            body = response.json()
+            _state.discovery_cache[service] = body
+
         if not body:  # service does not exist in consul
             raise errors.ServiceNotFoundError(service)
         else:

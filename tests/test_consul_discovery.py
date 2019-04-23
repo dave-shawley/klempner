@@ -59,11 +59,11 @@ class AgentBasedTests(helpers.EnvironmentMixin, unittest.TestCase):
         for service_id in list(self._service_ids):
             self.deregister_service(service_id, ignore_error=True)
 
-    def register_service(self, service_name):
+    def register_service(self):
         service_id = str(uuid.uuid4())
         service_details = {
             'ID': service_id,
-            'Name': '{0}-{1}'.format(service_name, service_id),
+            'Name': 's' + service_id.replace('-', '').lower(),
             'Address': '10.0.0.1',
             'Port': random.randint(10000, 20000),
             'Datacenter': self.datacenter,
@@ -82,7 +82,7 @@ class AgentBasedTests(helpers.EnvironmentMixin, unittest.TestCase):
         self._service_ids.discard(service_id)
 
     def test_that_details_are_fetched_from_consul_agent(self):
-        service_info = self.register_service('my-service')
+        service_info = self.register_service()
         self.assertEqual(
             'http://{Name}.service.{Datacenter}.consul:{Port}/'.format(
                 **service_info),
@@ -92,3 +92,14 @@ class AgentBasedTests(helpers.EnvironmentMixin, unittest.TestCase):
     def test_that_nonexistent_service_raises_exception(self):
         with self.assertRaises(klempner.errors.ServiceNotFoundError):
             klempner.url.build_url(str(uuid.uuid4()))
+
+    def test_that_service_lookup_is_cached(self):
+        service_info = self.register_service()
+        expected = 'http://{Name}.service.{Datacenter}.consul:{Port}/'.format(
+            **service_info)
+        self.assertEqual(expected,
+                         klempner.url.build_url(service_info['Name']))
+
+        self.deregister_service(service_info['ID'])
+        self.assertEqual(expected,
+                         klempner.url.build_url(service_info['Name']))
