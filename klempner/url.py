@@ -36,6 +36,52 @@ class DiscoveryMethod(object):
     AVAILABLE = (CONSUL, CONSUL_AGENT, K8S, SIMPLE)
 
 
+class Config:
+    def __init__(self):
+        self.discovery_style = None
+        self.parameters = {}
+
+    def reset(self):
+        self.discovery_style = None
+        self.parameters.clear()
+
+    def determine_discovery_method(self):
+        if self.discovery_style is not None:
+            return
+
+        logger = logging.getLogger(__package__)
+        self.discovery_style = DiscoveryMethod.DEFAULT
+        discovery_style = os.environ.get('KLEMPNER_DISCOVERY',
+                                         DiscoveryMethod.SIMPLE)
+        if discovery_style == DiscoveryMethod.CONSUL:
+            try:
+                datacenter = os.environ['CONSUL_DATACENTER']
+                self.discovery_style = discovery_style
+                self.parameters['datacenter'] = datacenter
+            except KeyError:
+                logger.warning(
+                    'discovery style set to %s but CONSUL_DATACENTER is not '
+                    'set: falling back to simple URL construction',
+                    discovery_style)
+        elif discovery_style == DiscoveryMethod.CONSUL_AGENT:
+            url = compat.urlunparse(('http', os.environ['CONSUL_HTTP_ADDR'],
+                                     '/v1/agent/self', None, None, None))
+            response = requests.get(url)
+            response.raise_for_status()
+            body = response.json()
+            self.discovery_style = discovery_style
+            self.parameters['datacenter'] = body['Config']['Datacenter']
+        elif discovery_style == DiscoveryMethod.K8S:
+            namespace = os.environ.get('KUBERNETES_NAMESPACE', 'default')
+            self.discovery_style = discovery_style
+            self.parameters['namespace'] = namespace
+        elif discovery_style not in DiscoveryMethod.AVAILABLE:
+            raise errors.ConfigurationError('discovery_style', discovery_style)
+
+
+config = Config()
+
+
 class ConsulAgentAdapter(requests.adapters.HTTPAdapter):
     """Adapter that sends `consul://` requests to a consul agent."""
 
@@ -61,8 +107,6 @@ class State(object):
     """
 
     def __init__(self):
-        self.discovery_style = None
-        self.discovery_parameters = tuple()
         self.discovery_cache = cachetools.TTLCache(50, 300)
         self.logger = logging.getLogger(__package__)
         self.session = requests.Session()
@@ -70,36 +114,6 @@ class State(object):
 
     def clear(self):
         self.session.close()
-        self.discovery_style = None
-        self.discovery_cache.clear()
-
-    def determine_discovery_method(self):
-        if self.discovery_style is not None:
-            return
-
-        self.discovery_style = DiscoveryMethod.DEFAULT
-        discovery_style = os.environ.get('KLEMPNER_DISCOVERY',
-                                         DiscoveryMethod.SIMPLE)
-        if discovery_style == DiscoveryMethod.CONSUL:
-            try:
-                datacenter = os.environ['CONSUL_DATACENTER']
-                self.discovery_style = discovery_style
-                self.discovery_parameters = (datacenter, )
-            except KeyError:
-                self.logger.warning(
-                    'discovery style set to %s but CONSUL_DATACENTER is not '
-                    'set: falling back to simple URL construction',
-                    discovery_style)
-        elif discovery_style == DiscoveryMethod.CONSUL_AGENT:
-            response = self.session.get('consul://agent/v1/agent/self')
-            response.raise_for_status()
-            body = response.json()
-            self.discovery_style = discovery_style
-            self.discovery_parameters = (body['Config']['Datacenter'], )
-        elif discovery_style == DiscoveryMethod.K8S:
-            namespace = os.environ.get('KUBERNETES_NAMESPACE', 'default')
-            self.discovery_style = discovery_style
-            self.discovery_parameters = (namespace, )
 
 
 _state = State()
@@ -115,6 +129,7 @@ def reset_cache():
     outside of the process.
 
     """
+    config.reset()
     _state.clear()
 
 
@@ -161,16 +176,15 @@ def _write_network_portion(buf, service):
     :param str service: name of the service that is being looked up
 
     """
-    _state.determine_discovery_method()
+    config.determine_discovery_method()
     env_service = service.upper()
-    details = (_state.discovery_style, _state.discovery_parameters[0])
-    if details[0] == DiscoveryMethod.CONSUL:
+    if config.discovery_style == DiscoveryMethod.CONSUL:
         buf.write('http://')
         buf.write(service)
         buf.write('.service.')
-        buf.write(details[1])
+        buf.write(config.parameters['datacenter'])
         buf.write('.consul')
-    elif details[0] == DiscoveryMethod.CONSUL_AGENT:
+    elif config.discovery_style == DiscoveryMethod.CONSUL_AGENT:
         sentinel = object()
         body = _state.discovery_cache.get(service, sentinel)
         if body is sentinel:
@@ -189,10 +203,10 @@ def _write_network_portion(buf, service):
             buf.write(body[0]['Datacenter'])
             buf.write('.consul:')
             buf.write(str(body[0]['ServicePort']))
-    elif details[0] == DiscoveryMethod.K8S:
+    elif config.discovery_style == DiscoveryMethod.K8S:
         buf.write('http://')
         buf.write(service + '.')
-        buf.write(details[1])
+        buf.write(config.parameters['namespace'])
         buf.write('.svc.cluster.local')
     else:
         buf.write(os.environ.get('{0}_SCHEME'.format(env_service), 'http'))
