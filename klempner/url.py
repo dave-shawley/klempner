@@ -64,11 +64,10 @@ class Config:
                 datacenter = os.environ['CONSUL_DATACENTER']
                 self._discovery_style = new_style
                 self.parameters['datacenter'] = datacenter
-            except KeyError:
-                logger.warning(
-                    'discovery style set to %s but CONSUL_DATACENTER is not '
-                    'set: falling back to simple URL construction', new_style)
-                self.discovery_style = DiscoveryMethod.SIMPLE
+            except KeyError as error:
+                logger.error('discovery style %s requires %s to be set',
+                             new_style, error.args[0].upper())
+                raise errors.ConfigurationError(error.args[0].upper(), None)
         elif new_style == DiscoveryMethod.CONSUL_AGENT:
             try:
                 url = compat.urlunparse(

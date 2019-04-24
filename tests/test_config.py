@@ -30,11 +30,13 @@ class ConfigTests(tests.helpers.EnvironmentMixin, unittest.TestCase):
         url.config.discovery_style = url.DiscoveryMethod.SIMPLE
         self.assertEqual({}, url.config.parameters)
 
-    def test_that_consul_discovery_without_datacenter_switches_to_simple(self):
+    def test_that_consul_discovery_without_datacenter_fails(self):
         self.unsetenv('CONSUL_DATACENTER')
-        url.config.discovery_style = url.DiscoveryMethod.CONSUL
-        self.assertEqual(url.DiscoveryMethod.SIMPLE,
-                         url.config.discovery_style)
+        with self.assertRaises(errors.ConfigurationError) as context:
+            url.config.discovery_style = url.DiscoveryMethod.CONSUL
+        self.assertEqual('CONSUL_DATACENTER',
+                         context.exception.configuration_name)
+        self.assertIs(None, context.exception.configuration_value)
 
     def test_that_consul_agent_discovery_with_addr_fails(self):
         self.unsetenv('CONSUL_HTTP_ADDR')

@@ -13,21 +13,13 @@ import klempner.url
 
 
 class SimpleConsulTests(helpers.EnvironmentMixin, unittest.TestCase):
-    def setUp(self):
-        super(SimpleConsulTests, self).setUp()
+    def test_that_consul_datacenter_environment_sets_datacenter_name(self):
         klempner.url.reset_cache()
         self.setenv('KLEMPNER_DISCOVERY', klempner.url.DiscoveryMethod.CONSUL)
-        self.setenv('CONSUL_DATACENTER', 'development')
-
-    def test_that_consul_datacenter_environment_sets_datacenter_name(self):
         env = str(uuid.uuid4())
         self.setenv('CONSUL_DATACENTER', env)
         self.assertEqual('http://account.service.{0}.consul/'.format(env),
                          klempner.url.build_url('account'))
-
-    def test_that_consul_discovery_is_disabled_when_envvar_is_not_set(self):
-        self.unsetenv('CONSUL_DATACENTER')
-        self.assertEqual('http://account/', klempner.url.build_url('account'))
 
 
 @unittest.skipUnless('CONSUL_HTTP_ADDR' in os.environ,
