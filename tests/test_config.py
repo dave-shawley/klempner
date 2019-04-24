@@ -10,13 +10,36 @@ class ConfigTests(tests.helpers.EnvironmentMixin, unittest.TestCase):
         super(ConfigTests, self).tearDown()
         url.config.reset()
 
-    def test_that_discovery_style_is_cached(self):
-        sentinel = object()
-        url.config.discovery_style = sentinel
-        url.config.determine_discovery_method()
-        self.assertIs(sentinel, url.config.discovery_style)
-
     def test_that_unknown_discovery_method_raises_configuration_error(self):
-        self.setenv('KLEMPNER_DISCOVERY', 'unknown-option')
-        with self.assertRaises(errors.ConfigurationError):
-            url.config.determine_discovery_method()
+        with self.assertRaises(errors.ConfigurationError) as context:
+            url.config.discovery_style = 'unknown-option'
+        self.assertEqual('discovery_style',
+                         context.exception.configuration_name)
+        self.assertEqual('unknown-option',
+                         context.exception.configuration_value)
+
+    def test_that_discovery_style_is_cached(self):
+        # NB - assumes that setting a style changes url.config.parameters
+        url.config.discovery_style = url.DiscoveryMethod.SIMPLE
+        url.config.parameters['fake'] = 'parameter'
+
+        url.config.discovery_style = url.DiscoveryMethod.SIMPLE
+        self.assertEqual({'fake': 'parameter'}, url.config.parameters)
+
+    def test_that_simple_discovery_is_parameterless(self):
+        url.config.discovery_style = url.DiscoveryMethod.SIMPLE
+        self.assertEqual({}, url.config.parameters)
+
+    def test_that_consul_discovery_without_datacenter_switches_to_simple(self):
+        self.unsetenv('CONSUL_DATACENTER')
+        url.config.discovery_style = url.DiscoveryMethod.CONSUL
+        self.assertEqual(url.DiscoveryMethod.SIMPLE,
+                         url.config.discovery_style)
+
+    def test_that_consul_agent_discovery_with_addr_fails(self):
+        self.unsetenv('CONSUL_HTTP_ADDR')
+        with self.assertRaises(errors.ConfigurationError) as context:
+            url.config.discovery_style = url.DiscoveryMethod.CONSUL_AGENT
+        self.assertEqual('CONSUL_HTTP_ADDR',
+                         context.exception.configuration_name)
+        self.assertIs(None, context.exception.configuration_value)

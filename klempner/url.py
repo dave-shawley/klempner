@@ -38,45 +38,63 @@ class DiscoveryMethod(object):
 
 class Config:
     def __init__(self):
-        self.discovery_style = None
+        self._discovery_style = None
         self.parameters = {}
 
     def reset(self):
         self.discovery_style = None
-        self.parameters.clear()
 
-    def determine_discovery_method(self):
-        if self.discovery_style is not None:
-            return
+    @property
+    def discovery_style(self):
+        return self._discovery_style
 
+    @discovery_style.setter
+    def discovery_style(self, new_style):
         logger = logging.getLogger(__package__)
-        self.discovery_style = DiscoveryMethod.DEFAULT
-        discovery_style = os.environ.get('KLEMPNER_DISCOVERY',
-                                         DiscoveryMethod.SIMPLE)
-        if discovery_style == DiscoveryMethod.CONSUL:
+        if new_style is None:
+            self._discovery_style = None
+            self.parameters.clear()
+        elif new_style == self._discovery_style:
+            return
+        elif new_style == DiscoveryMethod.SIMPLE:
+            self._discovery_style = new_style
+            self.parameters.clear()
+        elif new_style == DiscoveryMethod.CONSUL:
             try:
                 datacenter = os.environ['CONSUL_DATACENTER']
-                self.discovery_style = discovery_style
+                self._discovery_style = new_style
                 self.parameters['datacenter'] = datacenter
             except KeyError:
                 logger.warning(
                     'discovery style set to %s but CONSUL_DATACENTER is not '
-                    'set: falling back to simple URL construction',
-                    discovery_style)
-        elif discovery_style == DiscoveryMethod.CONSUL_AGENT:
-            url = compat.urlunparse(('http', os.environ['CONSUL_HTTP_ADDR'],
-                                     '/v1/agent/self', None, None, None))
+                    'set: falling back to simple URL construction', new_style)
+                self.discovery_style = DiscoveryMethod.SIMPLE
+        elif new_style == DiscoveryMethod.CONSUL_AGENT:
+            try:
+                url = compat.urlunparse(
+                    ('http', os.environ['CONSUL_HTTP_ADDR'], '/v1/agent/self',
+                     None, None, None))
+            except KeyError as error:
+                logger.error('discovery style %s requires %s to be set',
+                             new_style, error.args[0].upper())
+                raise errors.ConfigurationError(error.args[0].upper(), None)
             response = requests.get(url)
             response.raise_for_status()
             body = response.json()
-            self.discovery_style = discovery_style
+            self._discovery_style = new_style
             self.parameters['datacenter'] = body['Config']['Datacenter']
-        elif discovery_style == DiscoveryMethod.K8S:
+        elif new_style == DiscoveryMethod.K8S:
             namespace = os.environ.get('KUBERNETES_NAMESPACE', 'default')
-            self.discovery_style = discovery_style
+            self._discovery_style = new_style
             self.parameters['namespace'] = namespace
-        elif discovery_style not in DiscoveryMethod.AVAILABLE:
-            raise errors.ConfigurationError('discovery_style', discovery_style)
+        else:
+            raise errors.ConfigurationError('discovery_style', new_style)
+
+    def determine_discovery_method(self):
+        if self.discovery_style is not None:
+            return
+        self.discovery_style = os.environ.get('KLEMPNER_DISCOVERY',
+                                              DiscoveryMethod.SIMPLE)
 
 
 config = Config()
