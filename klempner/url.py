@@ -35,6 +35,8 @@ class DiscoveryMethod(object):
 
     AVAILABLE = (CONSUL, CONSUL_AGENT, K8S, SIMPLE)
 
+    UNSET = object()
+
 
 class Config:
     """Configure URL construction.
@@ -48,57 +50,79 @@ class Config:
     """
 
     def __init__(self):
-        self._discovery_style = None
+        self.logger = logging.getLogger(__package__).getChild('config')
+        self._discovery_method = DiscoveryMethod.UNSET
         self.parameters = {}
 
     def reset(self):
         """Reset URL construction parameters."""
-        self.discovery_style = None
+        self.configure(DiscoveryMethod.UNSET)
+
+    def configure(self, discovery_method, **parameters):
+        def require_parameter(name):
+            try:
+                return parameters.pop(name)
+            except KeyError:
+                self.logger.error(
+                    'parameter %s is required by discovery method %s', name,
+                    discovery_method)
+                raise errors.ConfigurationError(name, None)
+
+        incoming_parameters = {}
+        if discovery_method is DiscoveryMethod.UNSET:
+            self._discovery_method = DiscoveryMethod.UNSET
+        elif discovery_method == DiscoveryMethod.CONSUL:
+            incoming_parameters['datacenter'] = require_parameter('datacenter')
+        elif discovery_method == DiscoveryMethod.CONSUL_AGENT:
+            incoming_parameters['datacenter'] = require_parameter('datacenter')
+        elif discovery_method == DiscoveryMethod.K8S:
+            incoming_parameters['namespace'] = require_parameter('namespace')
+        elif discovery_method not in DiscoveryMethod.AVAILABLE:
+            raise errors.ConfigurationError('discovery_style',
+                                            discovery_method)
+
+        self._discovery_method = discovery_method
+        self.parameters.clear()
+        self.parameters.update(incoming_parameters)
+        if parameters:
+            self.logger.warning(
+                'discovery style %s does not accept parameters, %d '
+                'parameters were passed to configure', discovery_method,
+                len(parameters))
 
     @property
     def discovery_style(self):
-        return self._discovery_style
+        return self._discovery_method
 
     @discovery_style.setter
-    def discovery_style(self, new_style):
-        logger = logging.getLogger(__package__)
-        if new_style is None:
-            self._discovery_style = None
-            self.parameters.clear()
-        elif new_style == self._discovery_style:
-            return
-        elif new_style == DiscoveryMethod.SIMPLE:
-            self._discovery_style = new_style
-            self.parameters.clear()
-        elif new_style == DiscoveryMethod.CONSUL:
+    def discovery_style(self, new_method):
+        def require_envvar(name):
             try:
-                datacenter = os.environ['CONSUL_DATACENTER']
-                self._discovery_style = new_style
-                self.parameters['datacenter'] = datacenter
-            except KeyError as error:
-                logger.error('discovery style %s requires %s to be set',
-                             new_style, error.args[0].upper())
-                raise errors.ConfigurationError(error.args[0].upper(), None)
-        elif new_style == DiscoveryMethod.CONSUL_AGENT:
-            try:
-                url = compat.urlunparse(
-                    ('http', os.environ['CONSUL_HTTP_ADDR'], '/v1/agent/self',
-                     None, None, None))
-            except KeyError as error:
-                logger.error('discovery style %s requires %s to be set',
-                             new_style, error.args[0].upper())
-                raise errors.ConfigurationError(error.args[0].upper(), None)
+                return os.environ[name]
+            except KeyError:
+                self.logger.error(
+                    'discovery method %s requires the %s environment variable',
+                    new_method, name)
+                raise errors.ConfigurationError(name, None)
+
+        parameters = {}
+        if new_method == DiscoveryMethod.CONSUL:
+            parameters['datacenter'] = require_envvar('CONSUL_DATACENTER')
+        elif new_method == DiscoveryMethod.CONSUL_AGENT:
+            url = compat.urlunparse(
+                ('http', require_envvar('CONSUL_HTTP_ADDR'), '/v1/agent/self',
+                 None, None, None))
             response = requests.get(url)
             response.raise_for_status()
             body = response.json()
-            self._discovery_style = new_style
-            self.parameters['datacenter'] = body['Config']['Datacenter']
-        elif new_style == DiscoveryMethod.K8S:
-            namespace = os.environ.get('KUBERNETES_NAMESPACE', 'default')
-            self._discovery_style = new_style
-            self.parameters['namespace'] = namespace
-        else:
-            raise errors.ConfigurationError('discovery_style', new_style)
+            parameters['datacenter'] = body['Config']['Datacenter']
+        elif new_method == DiscoveryMethod.K8S:
+            parameters['namespace'] = os.environ.get('KUBERNETES_NAMESPACE',
+                                                     'default')
+        elif new_method not in DiscoveryMethod.AVAILABLE:
+            raise errors.ConfigurationError('discovery_style', new_method)
+
+        self.configure(new_method, **parameters)
 
     def determine_discovery_method(self):
         """Set the discovery method from ``$KLEMPNER_DISCOVERY``.
@@ -108,10 +132,9 @@ class Config:
         already set.
 
         """
-        if self.discovery_style is not None:
-            return
-        self.discovery_style = os.environ.get('KLEMPNER_DISCOVERY',
-                                              DiscoveryMethod.SIMPLE)
+        if self.discovery_style is DiscoveryMethod.UNSET:
+            self.discovery_style = os.environ.get('KLEMPNER_DISCOVERY',
+                                                  DiscoveryMethod.SIMPLE)
 
 
 config = Config()

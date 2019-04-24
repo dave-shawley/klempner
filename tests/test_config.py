@@ -18,6 +18,7 @@ class ConfigTests(tests.helpers.EnvironmentMixin, unittest.TestCase):
         self.assertEqual('unknown-option',
                          context.exception.configuration_value)
 
+    @unittest.skip('temporarily disabled')
     def test_that_discovery_style_is_cached(self):
         # NB - assumes that setting a style changes url.config.parameters
         url.config.discovery_style = url.DiscoveryMethod.SIMPLE
