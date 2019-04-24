@@ -37,11 +37,22 @@ class DiscoveryMethod(object):
 
 
 class Config:
+    """Configure URL construction.
+
+    .. attribute:: discovery_style
+
+       Controls how URLs are constructed.  This value can be set explicitly
+       to configure the library.  If it is not set, then the
+       :env:`KLEMPNER_DISCOVERY` environment variable is read and cached.
+
+    """
+
     def __init__(self):
         self._discovery_style = None
         self.parameters = {}
 
     def reset(self):
+        """Reset URL construction parameters."""
         self.discovery_style = None
 
     @property
@@ -90,6 +101,13 @@ class Config:
             raise errors.ConfigurationError('discovery_style', new_style)
 
     def determine_discovery_method(self):
+        """Set the discovery method from ``$KLEMPNER_DISCOVERY``.
+
+        This method will set :attr:`discovery_style` based on the
+        :env:`KLEMPNER_DISCOVERY` environment variable if it is not
+        already set.
+
+        """
         if self.discovery_style is not None:
             return
         self.discovery_style = os.environ.get('KLEMPNER_DISCOVERY',
@@ -97,6 +115,7 @@ class Config:
 
 
 config = Config()
+"""URL construction configuration."""
 
 
 class ConsulAgentAdapter(requests.adapters.HTTPAdapter):
