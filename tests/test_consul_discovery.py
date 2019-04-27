@@ -7,6 +7,7 @@ import uuid
 
 import requests
 
+import klempner.config
 from tests import helpers
 import klempner.errors
 import klempner.url
@@ -15,7 +16,8 @@ import klempner.url
 class SimpleConsulTests(helpers.EnvironmentMixin, unittest.TestCase):
     def test_that_consul_datacenter_environment_sets_datacenter_name(self):
         klempner.url.reset_cache()
-        self.setenv('KLEMPNER_DISCOVERY', klempner.url.DiscoveryMethod.CONSUL)
+        self.setenv('KLEMPNER_DISCOVERY',
+                    klempner.config.DiscoveryMethod.CONSUL)
         env = str(uuid.uuid4())
         self.setenv('CONSUL_DATACENTER', env)
         self.assertEqual('http://account.service.{0}.consul/'.format(env),
@@ -42,7 +44,7 @@ class AgentBasedTests(helpers.EnvironmentMixin, unittest.TestCase):
         super(AgentBasedTests, self).setUp()
         klempner.url.reset_cache()
         self.setenv('KLEMPNER_DISCOVERY',
-                    klempner.url.DiscoveryMethod.CONSUL_AGENT)
+                    klempner.config.DiscoveryMethod.CONSUL_AGENT)
         self.unsetenv('CONSUL_DATACENTER')
         self._service_ids = set()
 

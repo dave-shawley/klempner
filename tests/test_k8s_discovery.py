@@ -3,6 +3,7 @@ from __future__ import unicode_literals
 import unittest
 import uuid
 
+import klempner.config
 from tests import helpers
 import klempner.url
 
@@ -11,7 +12,7 @@ class SimpleK8sTests(helpers.EnvironmentMixin, unittest.TestCase):
     def setUp(self):
         super(SimpleK8sTests, self).setUp()
         klempner.url.reset_cache()
-        self.setenv('KLEMPNER_DISCOVERY', klempner.url.DiscoveryMethod.K8S)
+        self.setenv('KLEMPNER_DISCOVERY', klempner.config.DiscoveryMethod.K8S)
         self.setenv('KUBERNETES_NAMESPACE', 'development')
 
     def test_that_k8s_namespace_environment_sets_datacenter_name(self):
