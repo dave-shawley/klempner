@@ -23,6 +23,9 @@ setuptools.setup(
             'flake8==3.7.7',
             'tox==3.8.6',
             'yapf==0.26.0',
+        ],
+        'docs': [
+            'sphinx==2.0.1',
         ]
     },
     classifiers=[
