@@ -7,3 +7,4 @@
    configuration
    api
    indecies
+   history
