@@ -1,0 +1,45 @@
+#!/bin/sh -e
+#
+# NAME
+#   docker-test -- run tests
+#
+# DESCRIPTION
+#   Creates a source distribution and runs the test suite in a isolated
+#   environment.
+#
+#   THIS SCRIPT ASSUMES THAT IT IS RUNNING INSIDE OF A DOCKER CONTAINER.
+#
+# vim: set ts=4 sw=4 sts=4 noet:
+
+export PIP_DISABLE_PIP_VERSION_CHECK=1
+
+echo 'Building package...'
+cd /source
+./setup.py sdist --dist-dir /tmp >/dev/null
+version=`./setup.py --version`
+mkdir /working
+
+echo 'Installing...'
+cd /working
+tar -x -f /tmp/klempner-$version.tar.gz
+cd klempner-$version
+pip install -qe .
+pip install -q coverage nose
+
+printf 'Running tests'
+nosetests \
+	--with-coverage --cover-package klempner --cover-branches \
+	--cover-html --cover-html-dir htmlcov \
+	--cover-xml --cover-xml-file coverage.xml \
+	--with-xunit --xunit-file nosetests.xml
+
+if test -d /output
+then
+	echo 'Copying reports to /output...'
+	tar -c -f - coverage.xml htmlcov nosetests.xml \
+		| tar -C /output -x -f -
+	if test -n "$TARGET_UID"
+	then
+		chown -R $TARGET_UID /output/coverage.xml /output/htmlcov /output/nosetests.xml
+	fi
+fi
