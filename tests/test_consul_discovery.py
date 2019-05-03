@@ -24,16 +24,17 @@ class SimpleConsulTests(helpers.EnvironmentMixin, unittest.TestCase):
                          klempner.url.build_url('account'))
 
 
-@unittest.skipUnless('CONSUL_HTTP_ADDR' in os.environ,
-                     'Consul agent is not present')
 class AgentBasedTests(helpers.EnvironmentMixin, unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         super(AgentBasedTests, cls).setUpClass()
         cls.session = requests.Session()
 
-        cls.agent_url = 'http://{0}/v1/agent'.format(
-            os.environ['CONSUL_HTTP_ADDR'])
+        try:
+            cls.agent_url = 'http://{0}/v1/agent'.format(
+                os.environ['CONSUL_HTTP_ADDR'])
+        except KeyError:
+            raise unittest.SkipTest('Consul agent is not present')
 
         response = cls.session.get(cls.agent_url + '/self')
         response.raise_for_status()
