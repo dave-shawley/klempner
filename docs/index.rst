@@ -6,5 +6,6 @@
 
    configuration
    api
+   contributing
    indecies
    history

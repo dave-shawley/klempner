@@ -1,0 +1,19 @@
+version: '3.2'
+services:
+  consul:
+    image: consul:latest
+    command: ["consul", "agent", "-datacenter", "development", "-dev",
+              "-client", "0.0.0.0"]
+    ports:
+      - 8500
+      - 8500/udp
+  integration-test:
+    image: python:3.7-alpine
+    working_dir: /source
+    command: ./ci/docker-test
+    environment:
+      CONSUL_HTTP_ADDR: consul:8500
+    volumes:
+      - .:/source
+    depends_on:
+      - consul
