@@ -26,26 +26,11 @@ then
 		echo '## ... reseting workspace.'
 		rm -fr build/workspace
 	fi
-elif test -d build/workspace
-then
-	echo '## Detected workspace in build/workspace without checksum.'
-	echo '## ... reseting workspace.'
-	rm -fr build/workspace
 fi
 
 if test ! -d build/workspace
 then
-	cat<<-EOM
-	##
-	##
-	## Creating workspace in build/workspace.
-	##
-	##
-	EOM
-	circleci local execute --config build/circleci-config \
-		-v `pwd`/build/workspace:/home/circleci/workspace \
-		--job create-workspace
-	calculate_checksum >build/workspace/checksum
+	mkdir -p build/workspace
 fi
 
 cat<<-EOM
@@ -57,4 +42,12 @@ cat<<-EOM
 EOM
 circleci local execute --config build/circleci-config \
 	-v `pwd`/build/workspace:/home/circleci/workspace \
-	--job test
+	--job test-python-2
+circleci local execute --config build/circleci-config \
+	-v `pwd`/build/workspace:/home/circleci/workspace \
+	--job test-python-3
+circleci local execute --config build/circleci-config \
+	-v `pwd`/build/workspace:/home/circleci/workspace \
+	--job combine-coverage
+
+calculate_checksum >build/workspace/checksum

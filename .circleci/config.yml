@@ -14,7 +14,80 @@ defaults:
       tags:
         ignore: /.*/
 
+commands:
+
+  create-workspace:
+    description: Create a Python workspace and install dependencies.
+    parameters:
+      named:
+        type: string
+      version:
+        type: string
+    steps:
+      - attach_workspace:
+          at: ~/workspace
+      - restore_cache:
+          keys:
+            - environment-cache-<< parameters.version >>-{{ checksum "setup.py" }}
+            - environment-cache-<< parameters.version >>-
+      - run:
+          name: Creating virtual environment
+          command: |
+            if test ! -e ~/workspace/<< parameters.named >>/bin/activate
+            then
+              case "<< parameters.version >>"
+              in
+              2*) python<< parameters.version >> -mvirtualenv ~/workspace/<< parameters.named >> ;;
+              3*) python<< parameters.version >> -mvenv  ~/workspace/<< parameters.named >> ;;
+              *)  echo "ERROR: << parameters.version >> is not supported"
+                  exit 1 ;;
+              esac
+            fi
+            . ~/workspace/<< parameters.named >>/bin/activate
+            pip install -e .
+            pip install '.[dev]' 'nose==1.3.7'
+      - save_cache:
+          paths:
+            - ~/workspace/<< parameters.named >>
+          key: environment-cache-<< parameters.version >>-{{ checksum "setup.py" }}
+      - persist_to_workspace:
+          root: ~/workspace
+          paths:
+            - ./<< parameters.named >>
+
+  run-tests:
+    description: Run nosetests with coverage enabled
+    parameters:
+      virtual-environment-name:
+        type: string
+      coverage-file:
+        type: string
+    steps:
+      - run:
+          name: Run tests
+          command: |
+            . ~/workspace/<< parameters.virtual-environment-name >>/bin/activate
+            mkdir -p build/reports
+            nosetests --with-coverage --cover-package klempner \
+              --cover-xml --cover-xml-file build/reports/coverage.xml \
+              --with-xunit --xunit-file build/reports/junit.xml
+            cp .coverage ~/workspace/<< parameters.coverage-file >>
+      - store_test_results:
+          path: build/reports
+      - persist_to_workspace:
+          root: ~/workspace
+          paths:
+            - << parameters.coverage-file >>
+      - store_artifacts:
+          path: build/reports
+          destination: build-reports
+
 executors:
+  python-2:
+    docker:
+      - image: circleci/python:2.7
+    working_directory: ~/source
+
   python-3:
     docker:
       - image: circleci/python:3.7
@@ -24,59 +97,69 @@ workflows:
   version: "2"
   build-workflow:  # PRs and merges into master
     jobs:
-      - create-workspace
-      - test:
+      - test-python-2
+      - test-python-3
+      - combine-coverage
+      - upload-coverage:
+          <<: *filter-only-master
           requires:
-            - create-workspace
+            - test-python-2
+            - test-python-3
 
 jobs:
-  create-workspace:  # create environment, install requirements
-    executor: python-3
+  test-python-2:
+    executor: python-2
     steps:
       - checkout
-      - attach_workspace:
-          at: ~/workspace
-      - restore_cache:  # if we have a cache, use it
-          keys:
-            - environment-cache-py3-{{ checksum "setup.py" }}
-            - environment-cache-py3-
-      - run:
-          name: Install depdendencies
-          command: |
-            python -mvenv ~/workspace/env
-            . ~/workspace/env/bin/activate
-            pip install -e '.[dev]'
-            pip install 'nose==1.3.7'
-      - save_cache:
-          paths:
-            - ~/workspace/env
-          key: environment-cache-py3-{{ checksum "setup.py" }}
-      - persist_to_workspace:
-          root: ~/workspace
-          paths:
-            - ./env
+      - create-workspace:
+          named: py2
+          version: "2.7"
+      - run-tests:
+          coverage-file: coverage-py2
+          virtual-environment-name: py2
 
-  test:  # run tests with coverage enabled
+  test-python-3:
+    executor: python-3
+    steps:
+      - checkout
+      - create-workspace:
+          named: py3
+          version: "3.7"
+      - run-tests:
+          coverage-file: coverage-py3
+          virtual-environment-name: py3
+
+  combine-coverage:
     executor: python-3
     steps:
       - checkout
       - attach_workspace:
           at: ~/workspace
       - run:
-          name: Run tests
+          name: Combine coverage
           command: |
-            . ~/workspace/env/bin/activate
-            mkdir -p build/reports
-            nosetests --with-coverage --cover-package klempner \
-              --cover-xml --cover-xml-file build/reports/coverage.xml \
-              --with-xunit --xunit-file build/reports/junit.xml
-            cp .coverage ~/workspace/coverage-py3
-      - store_test_results:
-          path: build/reports
+            . ~/workspace/py3/bin/activate
+            cd ~/workspace
+            test -d build-reports || mkdir build-reports
+            coverage combine coverage-py2 coverage-py3
+            coverage html --directory=build-reports/htmlcov
+            coverage report --show-missing >build-reports/coverage.txt
+            coverage xml -o build-reports/coverage.xml
       - persist_to_workspace:
           root: ~/workspace
           paths:
-            - coverage-py3
-      - store_artifacts:
-          path: build/reports
-          destination: build-reports
+            - ./build-reports
+
+  upload-coverage:
+    executor: python-3
+    steps:
+      - checkout
+      - attach_workspace:
+          at: ~/workspace
+      - run:
+          name: Upload coverage
+          command: |
+            . ~/workspace/env/bin/activate
+            cp ~/workspace/coverage-py3 ./.coverage
+            pip install coveralls
+            coveralls
