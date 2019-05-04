@@ -63,6 +63,7 @@ commands:
       coverage-file:
         type: string
     steps:
+      - setup_remote_docker
       - run:
           name: Run tests
           command: |
@@ -86,11 +87,15 @@ executors:
   python-2:
     docker:
       - image: circleci/python:2.7
+      - image: consul:latest
+        command: ["consul", "agent", "-datacenter", "development", "-dev", "-client", "0.0.0.0"]
     working_directory: ~/source
 
   python-3:
     docker:
       - image: circleci/python:3.7
+      - image: consul:latest
+        command: ["consul", "agent", "-datacenter", "development", "-dev", "-client", "0.0.0.0"]
     working_directory: ~/source
 
 workflows:
@@ -111,6 +116,8 @@ workflows:
 jobs:
   test-python-2:
     executor: python-2
+    environment:
+      CONSUL_HTTP_ADDR: 127.0.0.1:8500
     steps:
       - checkout
       - create-workspace:
@@ -122,6 +129,8 @@ jobs:
 
   test-python-3:
     executor: python-3
+    environment:
+      CONSUL_HTTP_ADDR: 127.0.0.1:8500
     steps:
       - checkout
       - create-workspace:
