@@ -106,8 +106,7 @@ workflows:
       - upload-coverage:
           <<: *filter-only-master
           requires:
-            - test-python-2
-            - test-python-3
+            - combine-coverage
 
 jobs:
   test-python-2:
@@ -152,6 +151,9 @@ jobs:
           root: ~/workspace
           paths:
             - ./build-reports
+      - store_artifacts:
+          path: ~/workspace/build-reports
+          destination: build-reports
 
   upload-coverage:
     executor: python-3
@@ -163,6 +165,6 @@ jobs:
           name: Upload coverage
           command: |
             . ~/workspace/env/bin/activate
-            cp ~/workspace/coverage-py3 ./.coverage
+            cp ~/workspace/.coverage .
             pip install coveralls
             coveralls
