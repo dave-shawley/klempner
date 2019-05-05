@@ -114,6 +114,10 @@ workflows:
           <<: *filter-only-master
           requires:
             - combine-coverage
+  release-workflow:
+    jobs:
+      - trigger-docs-build:
+          <<: *filter-only-tagged
 
 jobs:
   test-python-2:
@@ -178,3 +182,16 @@ jobs:
             . ~/workspace/env/bin/activate
             cp ~/workspace/.coverage .
             coveralls
+
+  trigger-docs-build:
+    executor: python-3
+    steps:
+      - checkout
+      - attach_workspace:
+          at: ~/workspace
+      - run:
+          name: Trigger Read the Docs build
+          command: |
+            curl --request POST -d "token=$READTHEDOCS_TOKEN" -d 'branches=master' \
+                 --header 'Email-Address: daveshawley+rtd@gmail.com' \
+                 https://readthedocs.org/api/v2/webhook/klempner/84522/
