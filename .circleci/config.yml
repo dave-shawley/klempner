@@ -69,12 +69,14 @@ commands:
           command: |
             . ~/workspace/<< parameters.virtual-environment-name >>/bin/activate
             mkdir -p build/reports
+            mkdir -p build/circleci/nosetests
             nosetests --with-coverage --cover-package klempner \
               --cover-xml --cover-xml-file build/reports/coverage.xml \
-              --with-xunit --xunit-file build/reports/junit.xml
+              --with-xunit --xunit-file build/reports/nosetests.xml
             cp .coverage ~/workspace/<< parameters.coverage-file >>
+            cp build/reports/nosetests.xml build/circleci/nosetests/results.xml
       - store_test_results:
-          path: build/reports
+          path: build/circleci
       - persist_to_workspace:
           root: ~/workspace
           paths:
