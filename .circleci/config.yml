@@ -45,7 +45,7 @@ commands:
             fi
             . ~/workspace/<< parameters.named >>/bin/activate
             pip install -e .
-            pip install '.[dev]' 'nose==1.3.7'
+            pip install '.[dev]' 'coveralls==1.7.0' 'nose==1.3.7'
       - save_cache:
           paths:
             - ~/workspace/<< parameters.named >>
@@ -175,5 +175,4 @@ jobs:
           command: |
             . ~/workspace/env/bin/activate
             cp ~/workspace/.coverage .
-            pip install coveralls
             coveralls
