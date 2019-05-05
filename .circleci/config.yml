@@ -110,10 +110,6 @@ workflows:
           requires:
             - test-python-2
             - test-python-3
-      - upload-coverage:
-          <<: *filter-only-master
-          requires:
-            - combine-coverage
   release-workflow:
     jobs:
       - trigger-docs-build:
@@ -164,6 +160,12 @@ jobs:
             coverage html --directory=build-reports/htmlcov
             coverage report --show-missing >build-reports/coverage.txt
             coverage xml -o build-reports/coverage.xml
+      - run:
+          name: Upload coverage
+          command: |
+            . ~/workspace/py3/bin/activate
+            cp ~/workspace/.coverage .
+            coveralls
       - persist_to_workspace:
           root: ~/workspace
           paths:
@@ -171,19 +173,6 @@ jobs:
       - store_artifacts:
           path: ~/workspace/build-reports
           destination: build-reports
-
-  upload-coverage:
-    executor: python-3
-    steps:
-      - checkout
-      - attach_workspace:
-          at: ~/workspace
-      - run:
-          name: Upload coverage
-          command: |
-            . ~/workspace/env/bin/activate
-            cp ~/workspace/.coverage .
-            coveralls
 
   trigger-docs-build:
     executor: python-3
