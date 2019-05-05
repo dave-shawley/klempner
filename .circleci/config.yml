@@ -118,6 +118,8 @@ workflows:
     jobs:
       - trigger-docs-build:
           <<: *filter-only-tagged
+      - upload-package:
+          <<: *filter-only-tagged
 
 jobs:
   test-python-2:
@@ -195,3 +197,21 @@ jobs:
             curl --request POST -d "token=$READTHEDOCS_TOKEN" -d 'branches=master' \
                  --header 'Email-Address: daveshawley+rtd@gmail.com' \
                  https://readthedocs.org/api/v2/webhook/klempner/84522/
+
+  upload-package:
+    executor: python-3
+    steps:
+      - checkout
+      - run:
+          name: Build and upload package
+          command: |
+            echo 'Installing twine...'
+            export PATH=$PATH:$HOME/.local/bin
+            pip install -q --user twine
+            echo 'Verifying package metadata...'
+            ./setup.py check --metadata --restructuredtext --strict
+            echo 'Verifying package distribution...'
+            rm -fr dist
+            ./setup.py -q sdist
+            twine check dist/*
+            twine upload dist/*
