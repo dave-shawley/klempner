@@ -116,6 +116,7 @@ workflows:
           <<: *filter-only-tagged
       - upload-package:
           <<: *filter-only-tagged
+          context: org-global
 
 jobs:
   test-python-2:
