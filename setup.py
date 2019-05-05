@@ -13,12 +13,19 @@ setuptools.setup(
     author='Dave Shawley',
     author_email='daveshawley@gmail.com',
     packages=['klempner'],
+    install_requires=[
+        'cachetools==3.1.0',
+        'requests==2.21.0',
+    ],
     extras_require={
         'dev': [
             'coverage==4.5.3',
             'flake8==3.7.7',
             'tox==3.8.6',
             'yapf==0.26.0',
+        ],
+        'docs': [
+            'sphinx==2.0.1',
         ]
     },
     classifiers=[

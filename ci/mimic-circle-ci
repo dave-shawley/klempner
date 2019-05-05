@@ -1,0 +1,53 @@
+#!/bin/sh -e
+#
+# Mimic a circle-ci run using their command line client.
+#
+# vim:set ts=4 sw=4 sts=4 noet:
+
+calculate_checksum() {
+	cat setup.py .circleci/config.yml | openssl dgst -sha256 -hex | awk '{print $2}'
+}
+
+if ! command -v circleci >/dev/null
+then
+	echo 'ERROR: circleci utility not found, please install it.'
+	exit 1
+fi
+
+circleci config process .circleci/config.yml | grep -v '^#' >build/circleci-config
+if test -e build/workspace/checksum
+then
+	echo '## Detected existing workspace in build/workspace.'
+	existing=`cat build/workspace/checksum`
+	current=`calculate_checksum`
+	if test "$existing" != "$current"
+	then
+		echo "## ... workspace checksum $current does not match $existing."
+		echo '## ... reseting workspace.'
+		rm -fr build/workspace
+	fi
+fi
+
+if test ! -d build/workspace
+then
+	mkdir -p build/workspace
+fi
+
+cat<<-EOM
+##
+##
+## Running tests.
+##
+##
+EOM
+circleci local execute --config build/circleci-config \
+	-v `pwd`/build/workspace:/home/circleci/workspace \
+	--job test-python-2
+circleci local execute --config build/circleci-config \
+	-v `pwd`/build/workspace:/home/circleci/workspace \
+	--job test-python-3
+circleci local execute --config build/circleci-config \
+	-v `pwd`/build/workspace:/home/circleci/workspace \
+	--job combine-coverage
+
+calculate_checksum >build/workspace/checksum

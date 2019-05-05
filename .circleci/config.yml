@@ -1,0 +1,217 @@
+version: "2.1"
+
+defaults:
+  only-tag-filter: &filter-only-tagged
+    filters:
+      branches:
+        ignore: /.*/
+      tags:
+        only: /.*/
+  only-master-filter: &filter-only-master
+    filters:
+      branches:
+        only: /master/
+      tags:
+        ignore: /.*/
+
+commands:
+
+  create-workspace:
+    description: Create a Python workspace and install dependencies.
+    parameters:
+      named:
+        type: string
+      version:
+        type: string
+    steps:
+      - attach_workspace:
+          at: ~/workspace
+      - restore_cache:
+          keys:
+            - environment-cache-<< parameters.version >>-{{ checksum "setup.py" }}
+            - environment-cache-<< parameters.version >>-
+      - run:
+          name: Creating virtual environment
+          command: |
+            if test ! -e ~/workspace/<< parameters.named >>/bin/activate
+            then
+              case "<< parameters.version >>"
+              in
+              2*) python<< parameters.version >> -mvirtualenv ~/workspace/<< parameters.named >> ;;
+              3*) python<< parameters.version >> -mvenv  ~/workspace/<< parameters.named >> ;;
+              *)  echo "ERROR: << parameters.version >> is not supported"
+                  exit 1 ;;
+              esac
+            fi
+            . ~/workspace/<< parameters.named >>/bin/activate
+            pip install -e .
+            pip install '.[dev]' 'coveralls==1.7.0' 'nose==1.3.7'
+      - save_cache:
+          paths:
+            - ~/workspace/<< parameters.named >>
+          key: environment-cache-<< parameters.version >>-{{ checksum "setup.py" }}
+      - persist_to_workspace:
+          root: ~/workspace
+          paths:
+            - ./<< parameters.named >>
+
+  run-tests:
+    description: Run nosetests with coverage enabled
+    parameters:
+      virtual-environment-name:
+        type: string
+      coverage-file:
+        type: string
+    steps:
+      - setup_remote_docker
+      - run:
+          name: Run tests
+          command: |
+            . ~/workspace/<< parameters.virtual-environment-name >>/bin/activate
+            mkdir -p build/reports
+            mkdir -p build/circleci/nosetests
+            nosetests --with-coverage --cover-package klempner \
+              --cover-xml --cover-xml-file build/reports/coverage.xml \
+              --with-xunit --xunit-file build/reports/nosetests.xml
+            cp .coverage ~/workspace/<< parameters.coverage-file >>
+            cp build/reports/nosetests.xml build/circleci/nosetests/results.xml
+      - store_test_results:
+          path: build/circleci
+      - persist_to_workspace:
+          root: ~/workspace
+          paths:
+            - << parameters.coverage-file >>
+      - store_artifacts:
+          path: build/reports
+          destination: build-reports
+
+executors:
+  python-2:
+    docker:
+      - image: circleci/python:2.7
+      - image: consul:latest
+        command: ["consul", "agent", "-datacenter", "development", "-dev", "-client", "0.0.0.0"]
+    working_directory: ~/source
+
+  python-3:
+    docker:
+      - image: circleci/python:3.7
+      - image: consul:latest
+        command: ["consul", "agent", "-datacenter", "development", "-dev", "-client", "0.0.0.0"]
+    working_directory: ~/source
+
+workflows:
+  version: "2"
+  build-workflow:  # PRs and merges into master
+    jobs:
+      - test-python-2
+      - test-python-3
+      - combine-coverage:
+          requires:
+            - test-python-2
+            - test-python-3
+      - upload-coverage:
+          <<: *filter-only-master
+          requires:
+            - combine-coverage
+  release-workflow:
+    jobs:
+      - trigger-docs-build:
+          <<: *filter-only-tagged
+      - upload-package:
+          <<: *filter-only-tagged
+
+jobs:
+  test-python-2:
+    executor: python-2
+    environment:
+      CONSUL_HTTP_ADDR: 127.0.0.1:8500
+    steps:
+      - checkout
+      - create-workspace:
+          named: py2
+          version: "2.7"
+      - run-tests:
+          coverage-file: coverage-py2
+          virtual-environment-name: py2
+
+  test-python-3:
+    executor: python-3
+    environment:
+      CONSUL_HTTP_ADDR: 127.0.0.1:8500
+    steps:
+      - checkout
+      - create-workspace:
+          named: py3
+          version: "3.7"
+      - run-tests:
+          coverage-file: coverage-py3
+          virtual-environment-name: py3
+
+  combine-coverage:
+    executor: python-3
+    steps:
+      - checkout
+      - attach_workspace:
+          at: ~/workspace
+      - run:
+          name: Combine coverage
+          command: |
+            . ~/workspace/py3/bin/activate
+            cd ~/workspace
+            test -d build-reports || mkdir build-reports
+            coverage combine coverage-py2 coverage-py3
+            coverage html --directory=build-reports/htmlcov
+            coverage report --show-missing >build-reports/coverage.txt
+            coverage xml -o build-reports/coverage.xml
+      - persist_to_workspace:
+          root: ~/workspace
+          paths:
+            - ./build-reports
+      - store_artifacts:
+          path: ~/workspace/build-reports
+          destination: build-reports
+
+  upload-coverage:
+    executor: python-3
+    steps:
+      - checkout
+      - attach_workspace:
+          at: ~/workspace
+      - run:
+          name: Upload coverage
+          command: |
+            . ~/workspace/env/bin/activate
+            cp ~/workspace/.coverage .
+            coveralls
+
+  trigger-docs-build:
+    executor: python-3
+    steps:
+      - checkout
+      - attach_workspace:
+          at: ~/workspace
+      - run:
+          name: Trigger Read the Docs build
+          command: |
+            curl --request POST -d "token=$READTHEDOCS_TOKEN" -d 'branches=master' \
+                 --header 'Email-Address: daveshawley+rtd@gmail.com' \
+                 https://readthedocs.org/api/v2/webhook/klempner/84522/
+
+  upload-package:
+    executor: python-3
+    steps:
+      - checkout
+      - run:
+          name: Build and upload package
+          command: |
+            echo 'Installing twine...'
+            export PATH=$PATH:$HOME/.local/bin
+            pip install -q --user twine
+            echo 'Verifying package metadata...'
+            ./setup.py check --metadata --restructuredtext --strict
+            echo 'Verifying package distribution...'
+            rm -fr dist
+            ./setup.py -q sdist
+            twine check dist/*
+            twine upload dist/*
