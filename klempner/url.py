@@ -2,6 +2,7 @@ from __future__ import unicode_literals
 
 import logging
 import os
+import socket
 
 import requests.adapters
 
@@ -134,12 +135,18 @@ def _write_network_portion(buf, service):
         if not body:  # service does not exist in consul
             raise errors.ServiceNotFoundError(service)
         else:
-            buf.write('http://')
-            buf.write(body[0]['ServiceName'])
-            buf.write('.service.')
-            buf.write(body[0]['Datacenter'])
-            buf.write('.consul:')
-            buf.write(str(body[0]['ServicePort']))
+            meta = body[0].get('ServiceMeta', {})
+            try:
+                buf.write(meta['protocol'])
+            except KeyError:
+                try:
+                    buf.write(socket.getservbyport(body[0]['ServicePort']))
+                except OSError:
+                    buf.write('http')
+            buf.write('://')
+            buf.write(
+                '{ServiceName}.service.{Datacenter}.consul'.format(**body[0]))
+            buf.write(':' + str(body[0]['ServicePort']))
     elif discovery_style == config.DiscoveryMethod.K8S:
         buf.write('http://')
         buf.write(service + '.')

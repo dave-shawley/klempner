@@ -2,6 +2,7 @@ from __future__ import unicode_literals
 
 import os
 import random
+import socket
 import unittest
 import uuid
 
@@ -54,15 +55,17 @@ class AgentBasedTests(helpers.EnvironmentMixin, unittest.TestCase):
         for service_id in list(self._service_ids):
             self.deregister_service(service_id, ignore_error=True)
 
-    def register_service(self):
+    def register_service(self, meta=None, port=None):
         service_id = str(uuid.uuid4())
         service_details = {
             'ID': service_id,
             'Name': 's' + service_id.replace('-', '').lower(),
             'Address': '10.0.0.1',
-            'Port': random.randint(10000, 20000),
+            'Port': port or random.randint(10000, 20000),
             'Datacenter': self.datacenter,
         }
+        if meta:
+            service_details['Meta'] = meta
         response = self.session.put(self.agent_url + '/service/register',
                                     json=service_details)
         response.raise_for_status()
@@ -98,3 +101,26 @@ class AgentBasedTests(helpers.EnvironmentMixin, unittest.TestCase):
         self.deregister_service(service_info['ID'])
         self.assertEqual(expected,
                          klempner.url.build_url(service_info['Name']))
+
+    def test_that_scheme_set_by_metadata(self):
+        service_info = self.register_service(meta={'protocol': 'https'})
+        expected = 'https://{Name}.service.{Datacenter}.consul:{Port}/'.format(
+            **service_info)
+        self.assertEqual(expected,
+                         klempner.url.build_url(service_info['Name']))
+
+    def test_that_scheme_set_by_port(self):
+        for expected_scheme in ('amqp', 'postgresql', 'https', 'rtsp', 'sip'):
+            try:
+                port = socket.getservbyname(expected_scheme)
+                break
+            except OSError:
+                pass
+        else:
+            raise unittest.SkipTest('known schemas are not supported')
+
+        service_info = self.register_service(port=port)
+        name, datacenter = service_info['Name'], service_info['Datacenter']
+        self.assertEqual(
+            f'{expected_scheme}://{name}.service.{datacenter}.consul:{port}/',
+            klempner.url.build_url(name))

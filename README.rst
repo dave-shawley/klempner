@@ -15,6 +15,19 @@ URL building
    print(url)
    # http://account/path/with%20spaces?query=arg&multi=arg&multi=support
 
+``build_url`` takes care of formatting the path and query parameters correctly
+in addition to discovering the service name.  In this example, the service name
+is used as-is (see *Unconfigured usage* below).  The real power in ``build_url``
+is its ability to discover the scheme, host name, and port number based on the
+operating environment.
+
+``build_url`` uses the ``http`` scheme by default.  If the port is determined
+by the discovery mechanism, then the scheme is set to the service name returned
+from `socket.getservbyport`_.
+
+.. _socket.getservbyport: https://docs.python.org/3/library/socket.html
+   #socket.getservbyport
+
 Discovery examples
 ------------------
 
@@ -44,7 +57,12 @@ interface exposes.
    print(url)  # http://account.service.production.consul/
 
 If you append ``+agent`` to the discovery method, then ``build_url`` will
-connect to a Consul agent and retrieve the port number for services.
+connect to a Consul agent and retrieve the port number for services.  If the
+port has a registered service associated with it, then the service name will
+be used as the scheme.
+
+Assuming that the *account* service is registered in consul with a service port
+of 8000::
 
 .. code-block:: python
 
@@ -52,9 +70,18 @@ connect to a Consul agent and retrieve the port number for services.
    url = klempner.url.build_url('account')
    print(url)  # http://account.service.production.consul:8000/
 
-The Consul agent will connect to the agent specified by the
-``CONSUL_HTTP_ADDR`` environment variable.  If the environment variable is
-not specified, then the agent on the localhost will be used.
+Now let's look at what happens for a RabbitMQ connection::
+
+.. code-block:: python
+
+   url = klempner.url.build_url('rabbit')
+   print(url)  # amqp://rabbit.service.production.consul:5432/
+
+The scheme is derived by calling ``socket.getservbyport(5432)``
+
+The library will connect to the agent specified by the ``CONSUL_HTTP_ADDR``
+environment variable.  If the environment variable is not specified, then the
+agent listening on the localhost will be used.
 
 Kubernetes service discovery
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
