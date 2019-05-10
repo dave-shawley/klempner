@@ -44,3 +44,9 @@ class SimpleEnvironmentTests(helpers.EnvironmentMixin, unittest.TestCase):
         self.setenv('ACCOUNT_PORT', '10.2.12.24:11223')
         url = klempner.url.build_url('account')
         self.assertEqual('http://10.2.12.24:11223/', url)
+
+    def test_that_scheme_is_set_from_port(self):
+        self.setenv('ACCOUNT_HOST', '10.2.12.23')
+        self.setenv('ACCOUNT_PORT', '443')
+        url = klempner.url.build_url('account')
+        self.assertEqual('https://10.2.12.23:443/', url)

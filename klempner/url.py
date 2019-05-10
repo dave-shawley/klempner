@@ -153,19 +153,31 @@ def _write_network_portion(buf, service):
         buf.write(parameters['namespace'])
         buf.write('.svc.cluster.local')
     else:
-        buf.write(os.environ.get('{0}_SCHEME'.format(env_service), 'http'))
+        scheme = os.environ.get('{0}_SCHEME'.format(env_service), None)
+        host = os.environ.get('{0}_HOST'.format(env_service), None)
+        port = os.environ.get('{0}_PORT'.format(env_service), None)
+
+        if port is not None and ':' in port:
+            # special case for docker's ip:port format
+            host, _, port = port.partition(':')
+
+        if scheme is None:
+            scheme = 'http'
+            if port is not None:
+                try:
+                    scheme = socket.getservbyport(int(port))
+                except OSError:
+                    pass
+
+        buf.write(scheme)
         buf.write('://')
-        netloc = os.environ.get('{0}_HOST'.format(env_service), None)
-        if netloc is None:
+        if host is None:
             buf.write(service)
         else:
-            port = os.environ.get('{0}_PORT'.format(env_service), '')
-            if ':' in port:  # special case for docker's service:port format
+            buf.write(host)
+            if port is not None:
+                buf.write(':')
                 buf.write(port)
-            else:
-                buf.write(netloc)
-                if port:
-                    buf.write(':' + port)
 
 
 def _quote_query_arg(v):

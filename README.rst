@@ -116,6 +116,8 @@ selects the service using the "com.docker.compose.service" label.
 
 Environment variable discovery
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+This form of discovery uses environment variables with the service name encoded
+into them::
 
 .. code-block:: python
 
@@ -123,3 +125,27 @@ Environment variable discovery
    os.environ['ACCOUNT_PORT'] = '11223'
    url = klempner.url.build_url('account')
    print(url)  # http://10.2.12.23:11223/
+
+For a service named ``adder``, the following table lists the environment
+variables that are applicable:
+
++------------------+-------------------------------+-----------+
+| Name             | URL component                 | Default   |
++------------------+-------------------------------+-----------+
+| ``ADDER_HOST``   | host portion of the authority | *none*    |
++------------------+-------------------------------+-----------+
+| ``ADDER_PORT``   | port portion of the authority | *omitted* |
++------------------+-------------------------------+-----------+
+| ``ADDER_SCHEME`` | scheme                        | ``http``  |
++------------------+-------------------------------+-----------+
+
+The URL scheme will be set using `socket.getservbyport`_ if the port is set
+and the scheme is not::
+
+.. code-block:: python
+
+   os.environ['ACCOUNT_HOST'] = '10.2.12.23'
+   os.environ['ACCOUNT_PORT'] = '443'
+   url = klempner.url.build_url('account')
+   print(url)  # https://10.2.12.23:443/
+
