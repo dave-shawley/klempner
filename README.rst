@@ -117,7 +117,7 @@ selects the service using the "com.docker.compose.service" label.
 Environment variable discovery
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 This form of discovery uses environment variables with the service name encoded
-into them::
+into them:
 
 .. code-block:: python
 
@@ -129,18 +129,19 @@ into them::
 For a service named ``adder``, the following table lists the environment
 variables that are applicable:
 
-+------------------+-------------------------------+-----------+
-| Name             | URL component                 | Default   |
-+------------------+-------------------------------+-----------+
-| ``ADDER_HOST``   | host portion of the authority | *none*    |
-+------------------+-------------------------------+-----------+
-| ``ADDER_PORT``   | port portion of the authority | *omitted* |
-+------------------+-------------------------------+-----------+
-| ``ADDER_SCHEME`` | scheme                        | ``http``  |
-+------------------+-------------------------------+-----------+
++------------------+-------------------------------+-------------+
+| Name             | URL component                 | Default     |
++------------------+-------------------------------+-------------+
+| ``ADDER_HOST``   | host portion of the authority | *none*      |
++------------------+-------------------------------+-------------+
+| ``ADDER_PORT``   | port portion of the authority | *omitted*   |
++------------------+-------------------------------+-------------+
+| ``ADDER_SCHEME`` | scheme                        | *see below* |
++------------------+-------------------------------+-------------+
 
-The URL scheme will be set using `socket.getservbyport`_ if the port is set
-and the scheme is not::
+The URL scheme defaults to looking up the port number in the
+``klempner.config.URL_SCHEME_MAP`` dictionary.  If the port number is not
+in the dictionary, then ``http`` is used as a default.
 
 .. code-block:: python
 

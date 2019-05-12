@@ -109,3 +109,37 @@ The library can be configured based on the environment by calling the
    Configures the name of the Kubernetes namespace used by
    :ref:`kubernetes-discovery-method` to generate URLs.  If this variable is
    not set, the value of ``default`` is used.
+
+URL schemes
+-----------
+The default scheme for all URLs is ``http``.  If a port number is available
+for the configured discovery scheme, then the port number is looked up in
+:data:`klempner.config.URL_SCHEME_MAP` and the result is used as the URL
+scheme.  The initial content of the mapping contains many of the `IANA
+registered schemes`_ as well as a number of other commonly used ones (e.g.,
+``postgresql``, ``amqp``).
+
+You can adjust the *port to scheme* mapping to match your needs.  If you
+want to disable scheme mapping altogether, simply clear the mapping when
+your application initializes:
+
+.. code-block:: python
+
+   klempner.config.URL_SCHEME_MAP.clear()
+
+Use the ``update`` operation if you need to augment the mapping or override
+specific entries:
+
+.. code-block:: python
+
+   klempner.config.URL_SCHEME_MAP.update({
+      5672: 'rabbitmq',
+      15672: 'rabbitmq-admin',
+   })
+
+The mapping is a simple :class:`dict` so you can manipulate it using the
+standard methods.  It is not cached anywhere in the library implementation
+so all modifications are immediately reflected in API calls.
+
+.. _IANA registered schemes: https://www.iana.org/assignments/uri-schemes
+   /uri-schemes.xhtml

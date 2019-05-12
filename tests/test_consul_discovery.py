@@ -2,7 +2,6 @@ from __future__ import unicode_literals
 
 import os
 import random
-import socket
 import unittest
 import uuid
 
@@ -110,17 +109,9 @@ class AgentBasedTests(helpers.EnvironmentMixin, unittest.TestCase):
                          klempner.url.build_url(service_info['Name']))
 
     def test_that_scheme_set_by_port(self):
-        for expected_scheme in ('amqp', 'postgresql', 'https', 'rtsp', 'sip'):
-            try:
-                port = socket.getservbyname(expected_scheme)
-                break
-            except OSError:
-                pass
-        else:
-            raise unittest.SkipTest('known schemas are not supported')
-
-        service_info = self.register_service(port=port)
-        name, datacenter = service_info['Name'], service_info['Datacenter']
-        self.assertEqual(
-            f'{expected_scheme}://{name}.service.{datacenter}.consul:{port}/',
-            klempner.url.build_url(name))
+        for port, scheme in klempner.config.URL_SCHEME_MAP.items():
+            service_info = self.register_service(port=port)
+            self.assertEqual(
+                '{scheme}://{Name}.service.{Datacenter}.consul:{port}/'.format(
+                    port=port, scheme=scheme, **service_info),
+                klempner.url.build_url(service_info['Name']))

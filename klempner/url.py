@@ -2,7 +2,6 @@ from __future__ import unicode_literals
 
 import logging
 import os
-import socket
 
 import requests.adapters
 
@@ -135,14 +134,10 @@ def _write_network_portion(buf, service):
         if not body:  # service does not exist in consul
             raise errors.ServiceNotFoundError(service)
         else:
+            calculated_scheme = config.URL_SCHEME_MAP.get(
+                body[0]['ServicePort'], 'http')
             meta = body[0].get('ServiceMeta', {})
-            try:
-                buf.write(meta['protocol'])
-            except KeyError:
-                try:
-                    buf.write(socket.getservbyport(body[0]['ServicePort']))
-                except OSError:
-                    buf.write('http')
+            buf.write(meta.get('protocol', calculated_scheme))
             buf.write('://')
             buf.write(
                 '{ServiceName}.service.{Datacenter}.consul'.format(**body[0]))
@@ -164,10 +159,7 @@ def _write_network_portion(buf, service):
         if scheme is None:
             scheme = 'http'
             if port is not None:
-                try:
-                    scheme = socket.getservbyport(int(port))
-                except OSError:
-                    pass
+                scheme = config.URL_SCHEME_MAP.get(int(port), 'http')
 
         buf.write(scheme)
         buf.write('://')

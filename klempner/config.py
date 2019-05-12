@@ -5,6 +5,44 @@ import requests
 
 from klempner import compat, errors
 
+URL_SCHEME_MAP = {
+    5672: 'amqp',  # https://www.rabbitmq.com/uri-spec.html
+    21: 'ftp',  # https://tools.ietf.org/html/rfc1738
+    70: 'gopher',  # https://tools.ietf.org/html/rfc4266
+    80: 'http',  # https://tools.ietf.org/html/rfc7230#section-2.7.1
+    443: 'https',  # https://tools.ietf.org/html/rfc7230#section-2.7.2
+    1344: 'icap',  # https://tools.ietf.org/html/rfc3507#section-4.2
+    631: 'ipp',  # https://tools.ietf.org/html/rfc3510
+    389: 'ldap',  # https://tools.ietf.org/html/rfc4516
+    636: 'ldaps',  # https://tools.ietf.org/html/rfc4516
+    # https://docs.mongodb.com/manual/reference/connection-string/
+    27017: 'mongodb',
+    3306: 'mysql',
+    119: 'nntp',  # https://tools.ietf.org/html/rfc5538
+    110: 'pop',  # https://tools.ietf.org/html/rfc2384
+    # https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-CONNSTRING
+    5432: 'postgresql',
+    6379: 'redis',  # https://www.iana.org/assignments/uri-schemes/prov/redis
+    873: 'rsync',  # https://tools.ietf.org/html/rfc5781
+    554: 'rtsp',  # https://tools.ietf.org/html/rfc7826#section-4.2
+    322: 'rtsps',  # https://tools.ietf.org/html/rfc7826#section-4.2
+    25: 'smtp',  # https://tools.ietf.org/html/draft-melnikov-smime-msa-to-mda
+    161: 'snmp',  # https://tools.ietf.org/html/rfc4088
+    22: 'ssh',  # https://tools.ietf.org/html/draft-ietf-secsh-scp-sftp-ssh-uri
+    23: 'telnet',  # https://tools.ietf.org/html/rfc4248
+    69: 'tftp',  # https://tools.ietf.org/html/rfc3617
+    3372: 'tip',  # https://tools.ietf.org/html/rfc2371
+    5900: 'vnc',  # https://tools.ietf.org/html/rfc7869
+    602: 'xmlrpc.beep',  # https://tools.ietf.org/html/rfc3529#section-5.1
+}
+"""Mapping of port number to URL scheme.
+
+This dictionary is used to identify the URL scheme based on the port number
+when a port number is available.  Users of the library MAY modify the content
+of this dictionary **at any time**.
+
+"""
+
 
 class DiscoveryMethod(object):
     """Available discovery methods."""

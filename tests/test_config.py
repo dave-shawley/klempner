@@ -1,7 +1,7 @@
 import logging
 import unittest
 
-from klempner import config, errors
+from klempner import config, errors, url
 
 import tests.helpers
 
@@ -90,3 +90,30 @@ class ErrorHandlingTests(unittest.TestCase):
         else:
             self.fail('expected to find warning message in ' +
                       repr(log_messages))
+
+
+class SchemeMappingTests(tests.helpers.EnvironmentMixin, unittest.TestCase):
+    def setUp(self):
+        self._saved_scheme_map = config.URL_SCHEME_MAP.copy()
+        super(SchemeMappingTests, self).setUp()
+
+    def tearDown(self):
+        super(SchemeMappingTests, self).tearDown()
+        config.URL_SCHEME_MAP.clear()
+        config.URL_SCHEME_MAP.update(self._saved_scheme_map)
+
+    def test_that_mapping_can_be_disabled(self):
+        config.URL_SCHEME_MAP.clear()
+        config.configure(config.DiscoveryMethod.SIMPLE)
+        self.setenv('ACCOUNT_HOST', 'account.example.com')
+        self.setenv('ACCOUNT_PORT', '443')
+        self.assertEqual('http://account.example.com:443/',
+                         url.build_url('account'))
+
+    def test_that_mapping_can_be_overridden(self):
+        config.URL_SCHEME_MAP[5672] = 'rabbitmq'
+        config.configure(config.DiscoveryMethod.SIMPLE)
+        self.setenv('ACCOUNT_HOST', 'account.example.com')
+        self.setenv('ACCOUNT_PORT', '5672')
+        self.assertEqual('rabbitmq://account.example.com:5672/',
+                         url.build_url('account'))

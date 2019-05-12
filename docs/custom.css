@@ -3,3 +3,6 @@ div.document {width: 90%}
 div.body {max-width: initial;}
 div.code-block-caption {padding-bottom: 10px}
 span.caption-text {font-size: large; font-weight: bold; font-family: Georgia, serif}
+
+/* hide "ugly" data values */
+#klempner\.config\.URL_SCHEME_MAP em.property {display: none}
