@@ -26,7 +26,8 @@ class ConsulAgentAdapter(requests.adapters.HTTPAdapter):
 
     def send(self, request, stream=False, timeout=None, verify=True, cert=None,
              proxies=None):
-        _, _, path, params, query, fragment = compat.urlparse(request.url)
+        _, host, path, params, query, fragment = compat.urlparse(request.url)
+        path = host + path
         request.url = compat.urlunparse(
             ('http', os.environ['CONSUL_HTTP_ADDR'], path, params, query,
              fragment))
@@ -130,7 +131,7 @@ def _write_network_portion(buf, service):
         body = _state.discovery_cache.get(service, sentinel)
         if body is sentinel:
             response = _state.session.get(
-                'consul://agent/v1/catalog/service/{0}'.format(service))
+                'consul://v1/catalog/service/{0}'.format(service))
             response.raise_for_status()
             body = response.json()
             _state.discovery_cache[service] = body
