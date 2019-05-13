@@ -121,13 +121,14 @@ into them:
 
 .. code-block:: python
 
+   os.environ['KLEMPNER_DISCOVERY'] = 'environment'
    os.environ['ACCOUNT_HOST'] = '10.2.12.23'
    os.environ['ACCOUNT_PORT'] = '11223'
    url = klempner.url.build_url('account')
    print(url)  # http://10.2.12.23:11223/
 
-For a service named ``adder``, the following table lists the environment
-variables that are applicable:
+For a service named ``adder``, the following environment variables are used
+if they are set.
 
 +------------------+-------------------------------+-------------+
 | Name             | URL component                 | Default     |
@@ -145,6 +146,7 @@ in the dictionary, then ``http`` is used as a default.
 
 .. code-block:: python
 
+   os.environ['KLEMPNER_DISCOVERY'] = 'environment'
    os.environ['ACCOUNT_HOST'] = '10.2.12.23'
    os.environ['ACCOUNT_PORT'] = '443'
    url = klempner.url.build_url('account')

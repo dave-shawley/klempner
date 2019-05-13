@@ -56,6 +56,9 @@ class DiscoveryMethod(object):
     CONSUL_AGENT = 'consul+agent'
     """Build consul-based service URLs using a consul agent."""
 
+    ENV_VARS = 'environment'
+    """Build URLs based on _HOST, _PORT, and _SCHEME environment variables."""
+
     K8S = 'kubernetes'
     """Build Kubernetes cluster-based service URLs."""
 
@@ -63,7 +66,7 @@ class DiscoveryMethod(object):
 
     UNSET = object()
 
-    AVAILABLE = (CONSUL, CONSUL_AGENT, K8S, SIMPLE, UNSET)
+    AVAILABLE = (CONSUL, CONSUL_AGENT, ENV_VARS, K8S, SIMPLE, UNSET)
 
 
 _discovery_method = DiscoveryMethod.UNSET

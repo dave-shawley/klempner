@@ -104,7 +104,7 @@ class SchemeMappingTests(tests.helpers.EnvironmentMixin, unittest.TestCase):
 
     def test_that_mapping_can_be_disabled(self):
         config.URL_SCHEME_MAP.clear()
-        config.configure(config.DiscoveryMethod.SIMPLE)
+        config.configure(config.DiscoveryMethod.ENV_VARS)
         self.setenv('ACCOUNT_HOST', 'account.example.com')
         self.setenv('ACCOUNT_PORT', '443')
         self.assertEqual('http://account.example.com:443/',
@@ -112,7 +112,7 @@ class SchemeMappingTests(tests.helpers.EnvironmentMixin, unittest.TestCase):
 
     def test_that_mapping_can_be_overridden(self):
         config.URL_SCHEME_MAP[5672] = 'rabbitmq'
-        config.configure(config.DiscoveryMethod.SIMPLE)
+        config.configure(config.DiscoveryMethod.ENV_VARS)
         self.setenv('ACCOUNT_HOST', 'account.example.com')
         self.setenv('ACCOUNT_PORT', '5672')
         self.assertEqual('rabbitmq://account.example.com:5672/',

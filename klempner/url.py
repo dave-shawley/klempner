@@ -2,6 +2,10 @@ from __future__ import unicode_literals
 
 import logging
 import os
+try:
+    from urllib.parse import urlsplit
+except ImportError:
+    from urlparse import urlsplit
 
 import requests.adapters
 
@@ -147,29 +151,31 @@ def _write_network_portion(buf, service):
         buf.write(service + '.')
         buf.write(parameters['namespace'])
         buf.write('.svc.cluster.local')
-    else:
+    elif discovery_style == config.DiscoveryMethod.ENV_VARS:
         scheme = os.environ.get('{0}_SCHEME'.format(env_service), None)
         host = os.environ.get('{0}_HOST'.format(env_service), None)
         port = os.environ.get('{0}_PORT'.format(env_service), None)
 
-        if port is not None and ':' in port:
+        if port is not None and port.startswith('tcp://'):
             # special case for docker's ip:port format
-            host, _, port = port.partition(':')
-
+            parts = urlsplit(port)
+            port = str(parts.port)
+            if host is None:
+                host = parts.hostname
         if scheme is None:
-            scheme = 'http'
             if port is not None:
                 scheme = config.URL_SCHEME_MAP.get(int(port), 'http')
-
+            else:
+                scheme = 'http'
         buf.write(scheme)
         buf.write('://')
-        if host is None:
-            buf.write(service)
-        else:
-            buf.write(host)
-            if port is not None:
-                buf.write(':')
-                buf.write(port)
+        buf.write(host or service)
+        if port is not None:
+            buf.write(':')
+            buf.write(port)
+    else:
+        buf.write('http://')
+        buf.write(service)
 
 
 def _quote_query_arg(v):
