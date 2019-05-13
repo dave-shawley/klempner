@@ -32,6 +32,7 @@ The *simple* discovery method simply inserts the service name into the
 the port is left as the protocol default (unspecified).
 
 .. productionlist::
+   scheme    : "http"
    host      : service-name
 
 .. _consul-discovery-method:
@@ -42,6 +43,7 @@ The *consul* discovery method combines the service name and the consul data
 center to build the DNS CNAME that consul advertises:
 
 .. productionlist::
+   scheme    : "http"
    host      : service-name ".service." data-center ".consul"
 
 The data center name is configured by the :envvar:`CONSUL_DATACENTER`
@@ -51,15 +53,24 @@ environment variable.
 
 consul+agent
 ~~~~~~~~~~~~
-The *consul-agent* discovery method is similar to the
-:ref:`consul-discovery-method` method except that the data-center is discovered
-from a consul agent instead of an environment variable.
+The *consul-agent* discovery method retrieves the service information from
+a consul agent by `listing the available nodes`_ from the agent.  The
+service record includes the host name, port number, and configured metadata.
 
-.. productionlist::
-   host      : service-name ".service." data-center ".consul"
+Instead of selecting a host name from the available nodes, the advertised
+DNS name is used (see `consul-discovery-method`_ section) as the *host portion*.
+
+The *port number* from the first advertised node is used.
+
+If the protocol is included in the service metadata, then it is used as the
+*scheme* for the URL.  Otherwise, the port number is mapped through the
+:data:`~klempner.config.URL_SCHEME_MAP` to determine the scheme to apply.
 
 The consul agent endpoint is configured by the :envvar:`CONSUL_HTTP_ADDR`
 environment variable.
+
+.. _listing the available nodes: https://www.consul.io/api/catalog.html
+   #list-nodes-for-service
 
 .. _environment-discovery-method:
 
@@ -111,7 +122,7 @@ CNAMEs that `Kubernetes advertises`_.
 .. productionlist::
    host      : service-name "." namespace ".svc.cluster.local"
 
-The namespace is configured by the :envvar:`KUBERNETES_NAMESPACE` environemnt
+The namespace is configured by the :envvar:`KUBERNETES_NAMESPACE` environment
 variable.
 
 .. _Kubernetes advertises: https://kubernetes.io/docs/concepts

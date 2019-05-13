@@ -22,11 +22,8 @@ is its ability to discover the scheme, host name, and port number based on the
 operating environment.
 
 ``build_url`` uses the ``http`` scheme by default.  If the port is determined
-by the discovery mechanism, then the scheme is set to the service name returned
-from `socket.getservbyport`_.
-
-.. _socket.getservbyport: https://docs.python.org/3/library/socket.html
-   #socket.getservbyport
+by the discovery mechanism, then the scheme is set using a simple global
+mapping from port number to scheme.
 
 Discovery examples
 ------------------
@@ -62,7 +59,7 @@ port has a registered service associated with it, then the service name will
 be used as the scheme.
 
 Assuming that the *account* service is registered in consul with a service port
-of 8000::
+of 8000:
 
 .. code-block:: python
 
@@ -70,14 +67,16 @@ of 8000::
    url = klempner.url.build_url('account')
    print(url)  # http://account.service.production.consul:8000/
 
-Now let's look at what happens for a RabbitMQ connection::
+Now let's look at what happens for a RabbitMQ connection:
 
 .. code-block:: python
 
    url = klempner.url.build_url('rabbit')
    print(url)  # amqp://rabbit.service.production.consul:5432/
 
-The scheme is derived by calling ``socket.getservbyport(5432)``
+The scheme is derived by looking up the port in the
+``klempner.config.URL_SCHEME_MAP`` and using the result if the lookup
+succeeds.
 
 The library will connect to the agent specified by the ``CONSUL_HTTP_ADDR``
 environment variable.  If the environment variable is not specified, then the
