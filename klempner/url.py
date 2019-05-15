@@ -2,6 +2,10 @@ from __future__ import unicode_literals
 
 import logging
 import os
+try:
+    from urllib.parse import urlsplit
+except ImportError:
+    from urlparse import urlsplit
 
 import requests.adapters
 
@@ -22,7 +26,8 @@ class ConsulAgentAdapter(requests.adapters.HTTPAdapter):
 
     def send(self, request, stream=False, timeout=None, verify=True, cert=None,
              proxies=None):
-        _, _, path, params, query, fragment = compat.urlparse(request.url)
+        _, host, path, params, query, fragment = compat.urlparse(request.url)
+        path = host + path
         request.url = compat.urlunparse(
             ('http', os.environ['CONSUL_HTTP_ADDR'], path, params, query,
              fragment))
@@ -126,7 +131,7 @@ def _write_network_portion(buf, service):
         body = _state.discovery_cache.get(service, sentinel)
         if body is sentinel:
             response = _state.session.get(
-                'consul://agent/v1/catalog/service/{0}'.format(service))
+                'consul://v1/catalog/service/{0}'.format(service))
             response.raise_for_status()
             body = response.json()
             _state.discovery_cache[service] = body
@@ -134,31 +139,44 @@ def _write_network_portion(buf, service):
         if not body:  # service does not exist in consul
             raise errors.ServiceNotFoundError(service)
         else:
-            buf.write('http://')
-            buf.write(body[0]['ServiceName'])
-            buf.write('.service.')
-            buf.write(body[0]['Datacenter'])
-            buf.write('.consul:')
-            buf.write(str(body[0]['ServicePort']))
+            calculated_scheme = config.URL_SCHEME_MAP.get(
+                body[0]['ServicePort'], 'http')
+            meta = body[0].get('ServiceMeta', {})
+            buf.write(meta.get('protocol', calculated_scheme))
+            buf.write('://')
+            buf.write(
+                '{ServiceName}.service.{Datacenter}.consul'.format(**body[0]))
+            buf.write(':' + str(body[0]['ServicePort']))
     elif discovery_style == config.DiscoveryMethod.K8S:
         buf.write('http://')
         buf.write(service + '.')
         buf.write(parameters['namespace'])
         buf.write('.svc.cluster.local')
-    else:
-        buf.write(os.environ.get('{0}_SCHEME'.format(env_service), 'http'))
-        buf.write('://')
-        netloc = os.environ.get('{0}_HOST'.format(env_service), None)
-        if netloc is None:
-            buf.write(service)
-        else:
-            port = os.environ.get('{0}_PORT'.format(env_service), '')
-            if ':' in port:  # special case for docker's service:port format
-                buf.write(port)
+    elif discovery_style == config.DiscoveryMethod.ENV_VARS:
+        scheme = os.environ.get('{0}_SCHEME'.format(env_service), None)
+        host = os.environ.get('{0}_HOST'.format(env_service), None)
+        port = os.environ.get('{0}_PORT'.format(env_service), None)
+
+        if port is not None and port.startswith('tcp://'):
+            # special case for docker's ip:port format
+            parts = urlsplit(port)
+            port = str(parts.port)
+            if host is None:
+                host = parts.hostname
+        if scheme is None:
+            if port is not None:
+                scheme = config.URL_SCHEME_MAP.get(int(port), 'http')
             else:
-                buf.write(netloc)
-                if port:
-                    buf.write(':' + port)
+                scheme = 'http'
+        buf.write(scheme)
+        buf.write('://')
+        buf.write(host or service)
+        if port is not None:
+            buf.write(':')
+            buf.write(port)
+    else:
+        buf.write('http://')
+        buf.write(service)
 
 
 def _quote_query_arg(v):

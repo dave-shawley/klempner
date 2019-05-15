@@ -15,6 +15,16 @@ URL building
    print(url)
    # http://account/path/with%20spaces?query=arg&multi=arg&multi=support
 
+``build_url`` takes care of formatting the path and query parameters correctly
+in addition to discovering the service name.  In this example, the service name
+is used as-is (see *Unconfigured usage* below).  The real power in ``build_url``
+is its ability to discover the scheme, host name, and port number based on the
+operating environment.
+
+``build_url`` uses the ``http`` scheme by default.  If the port is determined
+by the discovery mechanism, then the scheme is set using a simple global
+mapping from port number to scheme.
+
 Discovery examples
 ------------------
 
@@ -44,7 +54,12 @@ interface exposes.
    print(url)  # http://account.service.production.consul/
 
 If you append ``+agent`` to the discovery method, then ``build_url`` will
-connect to a Consul agent and retrieve the port number for services.
+connect to a Consul agent and retrieve the port number for services.  If the
+port has a registered service associated with it, then the service name will
+be used as the scheme.
+
+Assuming that the *account* service is registered in consul with a service port
+of 8000:
 
 .. code-block:: python
 
@@ -52,9 +67,20 @@ connect to a Consul agent and retrieve the port number for services.
    url = klempner.url.build_url('account')
    print(url)  # http://account.service.production.consul:8000/
 
-The Consul agent will connect to the agent specified by the
-``CONSUL_HTTP_ADDR`` environment variable.  If the environment variable is
-not specified, then the agent on the localhost will be used.
+Now let's look at what happens for a RabbitMQ connection:
+
+.. code-block:: python
+
+   url = klempner.url.build_url('rabbit')
+   print(url)  # amqp://rabbit.service.production.consul:5432/
+
+The scheme is derived by looking up the port in the
+``klempner.config.URL_SCHEME_MAP`` and using the result if the lookup
+succeeds.
+
+The library will connect to the agent specified by the ``CONSUL_HTTP_ADDR``
+environment variable.  If the environment variable is not specified, then the
+agent listening on the localhost will be used.
 
 Kubernetes service discovery
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -89,10 +115,39 @@ selects the service using the "com.docker.compose.service" label.
 
 Environment variable discovery
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+This form of discovery uses environment variables with the service name encoded
+into them:
 
 .. code-block:: python
 
+   os.environ['KLEMPNER_DISCOVERY'] = 'environment'
    os.environ['ACCOUNT_HOST'] = '10.2.12.23'
    os.environ['ACCOUNT_PORT'] = '11223'
    url = klempner.url.build_url('account')
    print(url)  # http://10.2.12.23:11223/
+
+For a service named ``adder``, the following environment variables are used
+if they are set.
+
++------------------+-------------------------------+-------------+
+| Name             | URL component                 | Default     |
++------------------+-------------------------------+-------------+
+| ``ADDER_HOST``   | host portion of the authority | *none*      |
++------------------+-------------------------------+-------------+
+| ``ADDER_PORT``   | port portion of the authority | *omitted*   |
++------------------+-------------------------------+-------------+
+| ``ADDER_SCHEME`` | scheme                        | *see below* |
++------------------+-------------------------------+-------------+
+
+The URL scheme defaults to looking up the port number in the
+``klempner.config.URL_SCHEME_MAP`` dictionary.  If the port number is not
+in the dictionary, then ``http`` is used as a default.
+
+.. code-block:: python
+
+   os.environ['KLEMPNER_DISCOVERY'] = 'environment'
+   os.environ['ACCOUNT_HOST'] = '10.2.12.23'
+   os.environ['ACCOUNT_PORT'] = '443'
+   url = klempner.url.build_url('account')
+   print(url)  # https://10.2.12.23:443/
+

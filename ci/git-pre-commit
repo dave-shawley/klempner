@@ -39,7 +39,7 @@ then
 	cat|$fmt -w $columns<<-EOF
 		You have unstaged changes to some files in your
 		commit; skipping auto-format. Please stage, stash,
-		or revert these changes. You may find `git stash -k`
+		or revert these changes. You may find "git stash -k"
 		helpful here.
 
 		Files with unstaged changes: $changed_files

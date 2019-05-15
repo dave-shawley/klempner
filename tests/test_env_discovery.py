@@ -3,6 +3,7 @@ from __future__ import unicode_literals
 import unittest
 
 from tests import helpers
+import klempner.config
 import klempner.url
 
 
@@ -10,6 +11,8 @@ class SimpleEnvironmentTests(helpers.EnvironmentMixin, unittest.TestCase):
     def setUp(self):
         super(SimpleEnvironmentTests, self).setUp()
         klempner.url.reset_cache()
+        self.setenv('KLEMPNER_DISCOVERY',
+                    klempner.config.DiscoveryMethod.ENV_VARS)
 
     def test_that_scheme_envvar_is_honored(self):
         self.setenv('ACCOUNT_SCHEME', 'https')
@@ -22,25 +25,28 @@ class SimpleEnvironmentTests(helpers.EnvironmentMixin, unittest.TestCase):
         self.assertEqual('http://10.2.12.23/', url)
 
     def test_that_port_envvar_is_honored(self):
-        self.setenv('ACCOUNT_HOST', '10.2.12.23')
         self.setenv('ACCOUNT_PORT', '11223')
+        url = klempner.url.build_url('account')
+        self.assertEqual('http://account:11223/', url)
+
+    def test_that_docker_linked_port_is_accepted(self):
+        self.setenv('ACCOUNT_PORT', 'tcp://10.2.12.23:11223')
         url = klempner.url.build_url('account')
         self.assertEqual('http://10.2.12.23:11223/', url)
 
-    def test_that_port_envvar_is_ignored_unless_host_is_set(self):
-        self.unsetenv('ACCOUNT_HOST')
-        self.setenv('ACCOUNT_PORT', '11223')
-        url = klempner.url.build_url('account')
-        self.assertEqual('http://account/', url)
-
-    def test_that_docker_formatted_port_is_accepted(self):
+    def test_that_host_is_taken_from_docker_linked_port(self):
         self.setenv('ACCOUNT_HOST', '10.2.12.23')
-        self.setenv('ACCOUNT_PORT', '10.2.12.23:11223')
+        self.setenv('ACCOUNT_PORT', 'tcp://10.2.12.24:11223')
         url = klempner.url.build_url('account')
         self.assertEqual('http://10.2.12.23:11223/', url)
 
-    def test_that_host_is_taken_from_port_in_docker_formatted_port(self):
+    def test_that_scheme_is_set_from_port(self):
         self.setenv('ACCOUNT_HOST', '10.2.12.23')
-        self.setenv('ACCOUNT_PORT', '10.2.12.24:11223')
+        self.setenv('ACCOUNT_PORT', '443')
         url = klempner.url.build_url('account')
-        self.assertEqual('http://10.2.12.24:11223/', url)
+        self.assertEqual('https://10.2.12.23:443/', url)
+
+    def test_that_scheme_is_taken_from_docker_linked_port(self):
+        self.setenv('ACCOUNT_PORT', 'tcp://10.2.12.23:443')
+        url = klempner.url.build_url('account')
+        self.assertEqual('https://10.2.12.23:443/', url)
