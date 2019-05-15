@@ -2,6 +2,8 @@ klempner
 ========
 Constructs URLs that targeting other services.
 
+|Version| |Python| |Source| |Coverage| |Quality| |Docs| |CI|
+
 This library makes building URLs for inter-service communication safer
 and easier to build.
 
@@ -151,3 +153,17 @@ in the dictionary, then ``http`` is used as a default.
    url = klempner.url.build_url('account')
    print(url)  # https://10.2.12.23:443/
 
+.. |CI| image:: https://img.shields.io/circleci/project/github/dave-shawley/klempner/master.svg
+   :target: https://circleci.com/gh/dave-shawley/klempner
+.. |Coverage| image:: https://img.shields.io/coveralls/github/dave-shawley/klempner.svg
+   :target: https://coveralls.io/github/dave-shawley/klempner
+.. |Docs| image:: https://img.shields.io/readthedocs/klempner.svg
+   :target: https://klempner.readthedocs.io/
+.. |Python| image:: https://img.shields.io/pypi/pyversions/klempner.svg
+   :target: https://pypi.org/project/klempner
+.. |Quality| image:: https://sonarcloud.io/api/project_badges/measure?project=dave-shawley_klempner&metric=alert_status
+   :target: https://sonarcloud.io/dashboard?id=dave-shawley_klempner
+.. |Source| image:: https://img.shields.io/github/stars/dave-shawley/klempner.svg?logo=github
+   :target: https://github.com/dave-shawley/klempner
+.. |Version| image:: https://img.shields.io/pypi/v/klempner.svg
+   :target: https://pypi.org/project/klempner
