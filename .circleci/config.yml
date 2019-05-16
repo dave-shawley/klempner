@@ -65,6 +65,8 @@ commands:
         type: string
       coverage-file:
         type: string
+      execution-file:
+        type: string
     steps:
       - setup_remote_docker
       - run:
@@ -78,12 +80,14 @@ commands:
               --with-xunit --xunit-file build/reports/nosetests.xml
             cp .coverage ~/workspace/<< parameters.coverage-file >>
             cp build/reports/nosetests.xml build/circleci/nosetests/results.xml
+            cp build/reports/nosetests.xml ~/workspace/<< parameters.execution-file >>
       - store_test_results:
           path: build/circleci
       - persist_to_workspace:
           root: ~/workspace
           paths:
             - << parameters.coverage-file >>
+            - << parameters.execution-file >>
       - store_artifacts:
           path: build/reports
           destination: build-reports
@@ -133,6 +137,7 @@ jobs:
           version: "2.7"
       - run-tests:
           coverage-file: coverage-py2
+          execution-file: nosetests-py2.xml
           virtual-environment-name: py2
 
   test-python-3:
@@ -146,6 +151,7 @@ jobs:
           version: "3.7"
       - run-tests:
           coverage-file: coverage-py3
+          execution-file: nosetests-py3.xml
           virtual-environment-name: py3
 
   combine-coverage:
@@ -175,7 +181,7 @@ jobs:
           command: |
             mkdir -p build/reports
             cp ~/workspace/build-reports/coverage.xml build/reports
-            cp ~/workspace/build-reports/nosetests.xml build/reports
+            cp ~/workspace/build-reports/nosetests-py3.xml build/reports/nosetests.xml
       - sonarqube/scanner:
           app: https://github.com/dave-shawley/klempner
       - persist_to_workspace:
