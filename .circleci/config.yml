@@ -1,5 +1,8 @@
 version: "2.1"
 
+orbs:
+  sonarqube: onehq/sonarqube@0.3.0
+
 defaults:
   only-tag-filter: &filter-only-tagged
     filters:
@@ -162,11 +165,19 @@ jobs:
             coverage report --show-missing >build-reports/coverage.txt
             coverage xml -o build-reports/coverage.xml
       - run:
-          name: Upload coverage
+          name: Upload coverage to coveralls
           command: |
             . ~/workspace/py3/bin/activate
             cp ~/workspace/.coverage .
             coveralls
+      - run:
+          name: Copy reports for sonarqube
+          command: |
+            mkdir -p build/reports
+            cp ~/workspace/build-reports/coverage.xml build/reports
+            cp ~/workspace/build-reports/nosetests.xml build/reports
+      - sonarqube/scanner:
+          app: https://github.com/dave-shawley/klempner
       - persist_to_workspace:
           root: ~/workspace
           paths:
