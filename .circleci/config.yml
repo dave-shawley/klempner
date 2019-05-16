@@ -7,12 +7,6 @@ defaults:
         ignore: /.*/
       tags:
         only: /.*/
-  only-master-filter: &filter-only-master
-    filters:
-      branches:
-        only: /master/
-      tags:
-        ignore: /.*/
 
 commands:
 
@@ -62,6 +56,8 @@ commands:
         type: string
       coverage-file:
         type: string
+      execution-file:
+        type: string
     steps:
       - setup_remote_docker
       - run:
@@ -75,12 +71,14 @@ commands:
               --with-xunit --xunit-file build/reports/nosetests.xml
             cp .coverage ~/workspace/<< parameters.coverage-file >>
             cp build/reports/nosetests.xml build/circleci/nosetests/results.xml
+            cp build/reports/nosetests.xml ~/workspace/<< parameters.execution-file >>
       - store_test_results:
           path: build/circleci
       - persist_to_workspace:
           root: ~/workspace
           paths:
             - << parameters.coverage-file >>
+            - << parameters.execution-file >>
       - store_artifacts:
           path: build/reports
           destination: build-reports
@@ -102,7 +100,7 @@ executors:
 
 workflows:
   version: "2"
-  build-workflow:  # PRs and merges into master
+  build-workflow:
     jobs:
       - test-python-2
       - test-python-3
@@ -130,6 +128,7 @@ jobs:
           version: "2.7"
       - run-tests:
           coverage-file: coverage-py2
+          execution-file: nosetests-py2.xml
           virtual-environment-name: py2
 
   test-python-3:
@@ -143,6 +142,7 @@ jobs:
           version: "3.7"
       - run-tests:
           coverage-file: coverage-py3
+          execution-file: nosetests-py3.xml
           virtual-environment-name: py3
 
   combine-coverage:
@@ -162,11 +162,39 @@ jobs:
             coverage report --show-missing >build-reports/coverage.txt
             coverage xml -o build-reports/coverage.xml
       - run:
-          name: Upload coverage
+          name: Upload coverage to coveralls
           command: |
             . ~/workspace/py3/bin/activate
             cp ~/workspace/.coverage .
             coveralls
+      - run:
+          name: Copy reports for sonarqube
+          command: |
+            if test -n "$SONARQUBE_TOKEN"
+            then
+              mkdir -p build/reports
+              cp ~/workspace/build-reports/coverage.xml build/reports
+              cp ~/workspace/nosetests-py3.xml build/reports/nosetests.xml
+              wget https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-3.2.0.1227-linux.zip
+              unzip sonar-scanner-cli-3.2.0.1227-linux.zip
+              export SONAR_SCANNER_OPTS="-Xmx2048m"
+              if test -z "$CI_PULL_REQUEST"
+              then
+                ./sonar-scanner-3.2.0.1227-linux/bin/sonar-scanner \
+                  -Dsonar.login=$SONARQUBE_TOKEN
+              else
+                pr_key=`echo $CI_PULL_REQUEST | sed 's@^.*/\([^/]*\)$@\1@'`
+                ./sonar-scanner-3.2.0.1227-linux/bin/sonar-scanner \
+                  -Dsonar.login=$SONARQUBE_TOKEN \
+                  -Dsonar.pullrequest.base=master \
+                  -Dsonar.pullrequest.branch=$CIRCLE_BRANCH \
+                  -Dsonar.pullrequest.provider=GitHub \
+                  -Dsonar.pullrequest.github.repository=dave-shawley/klempner \
+                  -Dsonar.pullrequest.key=$pr_key
+              fi
+            else
+              echo 'SONARQUBE_TOKEN is not defined, skipping upload.'
+            fi
       - persist_to_workspace:
           root: ~/workspace
           paths:
