@@ -181,7 +181,7 @@ jobs:
           command: |
             mkdir -p build/reports
             cp ~/workspace/build-reports/coverage.xml build/reports
-            cp ~/workspace/build-reports/nosetests-py3.xml build/reports/nosetests.xml
+            cp ~/workspace/nosetests-py3.xml build/reports/nosetests.xml
       - sonarqube/scanner:
           app: https://github.com/dave-shawley/klempner
       - persist_to_workspace:
