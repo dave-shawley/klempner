@@ -1,8 +1,5 @@
 version: "2.1"
 
-orbs:
-  sonarqube: onehq/sonarqube@0.3.0
-
 defaults:
   only-tag-filter: &filter-only-tagged
     filters:
@@ -179,11 +176,32 @@ jobs:
       - run:
           name: Copy reports for sonarqube
           command: |
-            mkdir -p build/reports
-            cp ~/workspace/build-reports/coverage.xml build/reports
-            cp ~/workspace/nosetests-py3.xml build/reports/nosetests.xml
-      - sonarqube/scanner:
-          app: https://github.com/dave-shawley/klempner
+            if test -n "$SONARQUBE_TOKEN
+            then
+              mkdir -p build/reports
+              cp ~/workspace/build-reports/coverage.xml build/reports
+              cp ~/workspace/nosetests-py3.xml build/reports/nosetests.xml
+              wget https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-3.2.0.1227-linux.zip
+              unzip sonar-scanner-cli-3.2.0.1227-linux.zip
+              export SONAR_SCANNER_OPTS="-Xmx2048m"
+              if test -z "$CI_PULL_REQUEST"
+              then
+                ./sonar-scanner-3.2.0.1227-linux/bin/sonar-scanner \
+                  -Dsonar.projectVersion=$CIRCLE_BRANCH \
+                  -Dsonar.login=$SONARQUBE_TOKEN
+              else
+                pr_key=`echo $CI_PULL_REQUEST | sed 's@^.*/([^/]*)$@\1@'`
+                ./sonar-scanner-3.2.0.1227-linux/bin/sonar-scanner \
+                  -Dsonar.projectVersion=$CIRCLE_BRANCH \
+                  -Dsonar.login=$SONARQUBE_TOKEN \
+                  -Dsonar.pullrequest.base=master \
+                  -Dsonar.pullrequest.provider=GitHub \
+                  -Dsonar.pullrequest.github.repository=dave-shawley/klempner \
+                  -Dsonar.pullrequest.key=$pr_key
+              fi
+            else
+              echo 'SONARQUBE_TOKEN is not defined, skipping upload.'
+            fi
       - persist_to_workspace:
           root: ~/workspace
           paths:
