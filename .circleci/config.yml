@@ -190,7 +190,7 @@ jobs:
                   -Dsonar.projectVersion=$CIRCLE_BRANCH \
                   -Dsonar.login=$SONARQUBE_TOKEN
               else
-                pr_key=`echo $CI_PULL_REQUEST | sed 's@^.*/([^/]*)$@\1@'`
+                pr_key=`echo $CI_PULL_REQUEST | sed 's@^.*/\([^/]*\)$@\1@'`
                 ./sonar-scanner-3.2.0.1227-linux/bin/sonar-scanner \
                   -Dsonar.projectVersion=$CIRCLE_BRANCH \
                   -Dsonar.login=$SONARQUBE_TOKEN \
