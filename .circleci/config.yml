@@ -176,7 +176,7 @@ jobs:
       - run:
           name: Copy reports for sonarqube
           command: |
-            if test -n "$SONARQUBE_TOKEN
+            if test -n "$SONARQUBE_TOKEN"
             then
               mkdir -p build/reports
               cp ~/workspace/build-reports/coverage.xml build/reports
