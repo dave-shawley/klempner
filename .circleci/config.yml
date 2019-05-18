@@ -187,14 +187,13 @@ jobs:
               if test -z "$CI_PULL_REQUEST"
               then
                 ./sonar-scanner-3.2.0.1227-linux/bin/sonar-scanner \
-                  -Dsonar.projectVersion=$CIRCLE_BRANCH \
                   -Dsonar.login=$SONARQUBE_TOKEN
               else
                 pr_key=`echo $CI_PULL_REQUEST | sed 's@^.*/\([^/]*\)$@\1@'`
                 ./sonar-scanner-3.2.0.1227-linux/bin/sonar-scanner \
-                  -Dsonar.projectVersion=$CIRCLE_BRANCH \
                   -Dsonar.login=$SONARQUBE_TOKEN \
                   -Dsonar.pullrequest.base=master \
+                  -Dsonar.pullrequest.branch=$CIRCLE_BRANCH \
                   -Dsonar.pullrequest.provider=GitHub \
                   -Dsonar.pullrequest.github.repository=dave-shawley/klempner \
                   -Dsonar.pullrequest.key=$pr_key
