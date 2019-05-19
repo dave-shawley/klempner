@@ -4,6 +4,7 @@
    :maxdepth: 2
    :hidden:
 
+   discovery-mechanisms
    configuration
    api
    contributing
