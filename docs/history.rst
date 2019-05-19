@@ -1,8 +1,8 @@
 Release history
 ===============
 
-Next Release
-------------
+0.0.2 (19 May 2019)
+-------------------
 - :compare:`0.0.1...master`
 - Add :data:`~klempner.config.URL_SCHEME_MAP` so that URL schemes can be
   easily configured.
