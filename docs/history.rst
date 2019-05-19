@@ -3,7 +3,7 @@ Release history
 
 0.0.2 (19 May 2019)
 -------------------
-- :compare:`0.0.1...master`
+- :compare:`0.0.1...0.0.2`
 - Add :data:`~klempner.config.URL_SCHEME_MAP` so that URL schemes can be
   easily configured.
 - Separate the :ref:`environment-discovery-method` method out from the
