@@ -153,6 +153,15 @@ in the dictionary, then ``http`` is used as a default.
    url = klempner.url.build_url('account')
    print(url)  # https://10.2.12.23:443/
 
+Want to contribute?
+-------------------
+*Thank you.*  See `docs/contributing.rst`_ or
+https://klempner.readthedocs.io/en/latest/contributing.html for what you need
+to do.
+
+.. _docs/contributing.rst: https://github.com/dave-shawley/klempner/blob
+   /master/docs/contributing.rst
+
 .. |CI| image:: https://img.shields.io/circleci/project/github/dave-shawley/klempner/master.svg
    :target: https://circleci.com/gh/dave-shawley/klempner
 .. |Coverage| image:: https://img.shields.io/coveralls/github/dave-shawley/klempner.svg
