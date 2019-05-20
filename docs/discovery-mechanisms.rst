@@ -13,6 +13,18 @@ the port is left as the protocol default (unspecified).
    scheme    : "http"
    host      : service-name
 
+.. code-block::
+   :caption: Simple discovery method
+
+   url = klempner.url.build_url('account')
+   print(url)  # http://account/
+
+This is the default discovery mechanism which is little more than a wrapper
+around :func:`~urllib.parse.urlunsplit`.  It might be useful in Kubernetes
+for namespace-local services but I am not even convinced that it can be used
+there.  Call :func:`klempner.config.configure` or set the
+:envvar:`KLEMPNER_DISCOVERY` environment variable to set a more capable method.
+
 .. _environment-discovery-method:
 
 environment
@@ -37,6 +49,16 @@ The URL scheme defaults to looking up the port number in the
 ``klempner.config.URL_SCHEME_MAP`` dictionary.  If the port number is not
 in the dictionary, then ``http`` is used as a default.
 
+.. code-block::
+   :caption: Environment variable discovery
+
+   os.environ['KLEMPNER_DISCOVERY'] = 'environment'
+   os.environ['ACCOUNT_HOST'] = '10.2.12.23'
+   os.environ['ACCOUNT_PORT'] = '11223'
+   url = klempner.url.build_url('account')
+   print(url)  # http://10.2.12.23:11223/
+
+
 .. rubric:: Special case for docker/kubernetes linking
 
 If you are still using version 1 docker-compose files or you are deploying
@@ -48,6 +70,20 @@ is not a simple port number and should not be treated as such.  See the
 `kubernetes service discovery`_ documentation for more detail.  If the port
 environment variable matches this pattern, then the host and port are parsed
 from the URL.
+
+.. code-block::
+   :caption: Docker-linked environment variables
+
+   # mimic linkage to a single service
+   os.environ['ACCOUNT_PORT'] = 'tcp://172.17.0.2:8000'
+   os.environ['ACCOUNT_PORT_8000_TCP'] = 'tcp://172.17.0.2:8000'
+   os.environ['ACCOUNT_PORT_8000_TCP_ADDR'] = '172.17.0.2'
+   os.environ['ACCOUNT_PORT_8000_TCP_PORT'] = '8000'
+   os.environ['ACCOUNT_PORT_8000_TCP_PROTO'] = 'tcp'
+
+   os.environ['KLEMPNER_DISCOVERY'] = 'environment'
+   url = klempner.url.build_url('account')
+   print(url)  # http://172.17.0.2:8000/
 
 .. _kubernetes service discovery: https://kubernetes.io/docs/concepts
    /services-networking/service/#environment-variables
@@ -65,6 +101,14 @@ center to build the DNS CNAME that consul advertises:
 
 The data center name is configured by the :envvar:`CONSUL_DATACENTER`
 environment variable.
+
+.. code-block:: python
+   :caption: Consul URL templating
+
+   os.environ['KLEMPNER_DISCOVERY'] = 'consul'
+   os.environ['CONSUL_DATACENTER'] = 'production'
+   url = klempner.url.build_url('account')
+   print(url)  # http://account.service.production.consul/
 
 .. _consul-agent-discovery-method:
 
@@ -86,6 +130,15 @@ If the protocol is included in the service metadata, then it is used as the
 The consul agent endpoint is configured by the :envvar:`CONSUL_HTTP_ADDR`
 environment variable.
 
+.. code-block:: python
+   :caption: Consul agent lookup
+
+   os.environ['CONSUL_HTTP_ADDR'] = 'http://127.0.0.1:8500'
+
+   os.environ['KLEMPNER_DISCOVERY'] = 'consul+agent'
+   url = klempner.url.build_url('account')
+   print(url)  # http://account.service.production.consul:8000/
+
 .. _listing the available nodes: https://www.consul.io/api/catalog.html
    #list-nodes-for-service
 
@@ -102,6 +155,17 @@ CNAMEs that `Kubernetes advertises`_.
 
 The namespace is configured by the :envvar:`KUBERNETES_NAMESPACE` environment
 variable.
+
+.. code-block:: python
+   :caption: Kubernetes URL templating
+
+   os.environ['KLEMPNER_DISCOVERY'] = 'kubernetes'
+   url = klempner.url.build_url('account')
+   print(url)  # http://account.default.svc.local/
+
+   os.environ['KUBERNETES_NAMESPACE'] = 'my-team'
+   url = klempner.url.build_url('account')
+   print(url)  # http://account.my-team.svc.local/
 
 .. _Kubernetes advertises: https://kubernetes.io/docs/concepts
    /services-networking/dns-pod-service/#services
