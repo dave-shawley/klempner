@@ -35,6 +35,11 @@ class ConsulAgentAdapter(requests.adapters.HTTPAdapter):
             request, stream=stream, timeout=timeout, verify=verify, cert=cert,
             proxies=proxies)  # yapf: disable
 
+    def add_headers(self, request, **kwargs):
+        if os.environ.get('CONSUL_HTTP_TOKEN'):
+            request.headers['Authorization'] = 'Bearer {0}'.format(
+                os.environ['CONSUL_HTTP_TOKEN'])
+
 
 class State(object):
     """Module state.

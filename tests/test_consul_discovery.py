@@ -4,13 +4,18 @@ import os
 import random
 import unittest
 import uuid
+try:
+    import unittest.mock as mock
+except ImportError:
+    import mock
 
 import requests
 
 import klempner.config
-from tests import helpers
 import klempner.errors
 import klempner.url
+
+from tests import helpers
 
 
 class SimpleConsulTests(helpers.EnvironmentMixin, unittest.TestCase):
@@ -53,6 +58,7 @@ class AgentBasedTests(helpers.EnvironmentMixin, unittest.TestCase):
         super(AgentBasedTests, self).tearDown()
         for service_id in list(self._service_ids):
             self.deregister_service(service_id, ignore_error=True)
+        klempner.url.reset_cache()
 
     def register_service(self, meta=None, port=None):
         service_id = str(uuid.uuid4())
@@ -115,3 +121,28 @@ class AgentBasedTests(helpers.EnvironmentMixin, unittest.TestCase):
                 '{scheme}://{Name}.service.{Datacenter}.consul:{port}/'.format(
                     port=port, scheme=scheme, **service_info),
                 klempner.url.build_url(service_info['Name']))
+
+    def test_that_consul_token_is_sent_as_auth_header(self):
+        service_info = self.register_service()
+
+        state = {}
+
+        def prepare_request(request):
+            prepped_request = requests.sessions.Session.prepare_request(
+                klempner.url._state.session, request)
+            state['prepped_request'] = prepped_request
+            return prepped_request
+
+        interceptor = mock.Mock(side_effect=prepare_request)
+        klempner.url._state.session.prepare_request = interceptor
+
+        self.setenv('CONSUL_HTTP_TOKEN', 'my-token')
+        expected = 'http://{Name}.service.{Datacenter}.consul:{Port}/'.format(
+            **service_info)
+        self.assertEqual(expected,
+                         klempner.url.build_url(service_info['Name']))
+
+        self.assertEqual(1, interceptor.call_count)
+        prepped_request = state['prepped_request']
+        self.assertEqual('Bearer my-token',
+                         prepped_request.headers['Authorization'])

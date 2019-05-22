@@ -1,6 +1,11 @@
 Release history
 ===============
 
+Next Release
+------------
+- :compare:`0.0.2...master`
+- Add support for the :envvar:`CONSUL_HTTP_TOKEN` environment variable.
+
 0.0.2 (19 May 2019)
 -------------------
 - :compare:`0.0.1...0.0.2`

@@ -155,6 +155,12 @@ The library can be configured based on the environment by calling the
    Configures the Consul agent address and port used by the
    :ref:`consul-agent-discovery-method` method.
 
+.. envvar:: CONSUL_HTTP_TOKEN
+
+   Configures the option authorization token for interacting with the
+   Consul HTTP API.  If this environment variable is set, then it is
+   sent as a HTTP ``Beaerer`` authorization header.
+
 .. envvar:: KUBERNETES_NAMESPACE
 
    Configures the name of the Kubernetes namespace used by

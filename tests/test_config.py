@@ -1,5 +1,9 @@
 import logging
 import unittest
+try:
+    import unittest.mock as mock
+except ImportError:
+    import mock
 
 from klempner import config, errors, url
 
@@ -68,6 +72,22 @@ class ConfigByEnvironTests(tests.helpers.EnvironmentMixin, unittest.TestCase):
         self.assertEqual('CONSUL_HTTP_ADDR',
                          context.exception.configuration_name)
         self.assertIs(None, context.exception.configuration_value)
+
+    def test_that_consul_agent_discovery_uses_consul_token(self):
+        self.setenv('KLEMPNER_DISCOVERY', config.DiscoveryMethod.CONSUL_AGENT)
+        self.setenv('CONSUL_HTTP_TOKEN', 'some-token')
+        with mock.patch('klempner.config.requests.get') as requests_get:
+            response = mock.Mock()
+            response.json.return_value = {'Config': {'Datacenter': 'dc1'}}
+            requests_get.return_value = response
+            config.configure_from_environment()
+
+        self.assertEqual(1, requests_get.call_count)
+        positional, kwargs = requests_get.call_args_list[0]
+        self.assertIn('headers', kwargs)
+        self.assertIn('Authorization', kwargs['headers'])
+        self.assertEqual('bearer some-token',
+                         kwargs['headers']['Authorization'].lower())
 
 
 class ErrorHandlingTests(unittest.TestCase):

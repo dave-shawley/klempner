@@ -163,9 +163,15 @@ def configure_from_environment():
     if new_method == DiscoveryMethod.CONSUL:
         parameters['datacenter'] = require_envvar('CONSUL_DATACENTER')
     elif new_method == DiscoveryMethod.CONSUL_AGENT:
+        headers = {}
+        try:
+            headers['Authorization'] = 'Bearer {}'.format(
+                os.environ['CONSUL_HTTP_TOKEN'])
+        except KeyError:
+            pass
         url = compat.urlunparse(('http', require_envvar('CONSUL_HTTP_ADDR'),
                                  '/v1/agent/self', None, None, None))
-        response = requests.get(url)
+        response = requests.get(url, headers=headers)
         response.raise_for_status()
         body = response.json()
         parameters['datacenter'] = body['Config']['Datacenter']
