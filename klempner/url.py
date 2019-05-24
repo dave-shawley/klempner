@@ -10,7 +10,7 @@ except ImportError:
 import requests.adapters
 
 import cachetools
-from klempner import compat, config, errors
+from klempner import compat, config, errors, version
 
 #    pchar         = unreserved / pct-encoded / sub-delims / ":" / "@"
 #    sub-delims    = "!" / "$" / "&" / "'" / "(" / ")"
@@ -35,6 +35,11 @@ class ConsulAgentAdapter(requests.adapters.HTTPAdapter):
             request, stream=stream, timeout=timeout, verify=verify, cert=cert,
             proxies=proxies)  # yapf: disable
 
+    def add_headers(self, request, **kwargs):
+        if os.environ.get('CONSUL_HTTP_TOKEN'):
+            request.headers['Authorization'] = 'Bearer {0}'.format(
+                os.environ['CONSUL_HTTP_TOKEN'])
+
 
 class State(object):
     """Module state.
@@ -49,12 +54,19 @@ class State(object):
     def __init__(self):
         self.discovery_cache = cachetools.TTLCache(50, 300)
         self.logger = logging.getLogger(__package__)
-        self.session = requests.Session()
-        self.session.mount('consul://', ConsulAgentAdapter())
+        self.session = self._create_session()
 
     def clear(self):
         self.discovery_cache.clear()
         self.session.close()
+        self.session = self._create_session()
+
+    @staticmethod
+    def _create_session():
+        session = requests.Session()
+        session.mount('consul://', ConsulAgentAdapter())
+        session.headers['User-Agent'] = '/'.join([__package__, version])
+        return session
 
 
 _state = State()

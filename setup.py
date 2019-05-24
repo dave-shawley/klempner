@@ -17,10 +17,15 @@ setuptools.setup(
         'cachetools==3.1.0',
         'requests==2.21.0',
     ],
+    tests_require=[
+        'coverage==4.5.3',
+        'mock==1.0.1; python_version<"3"',
+    ],
     extras_require={
         'dev': [
             'coverage==4.5.3',
             'flake8==3.7.7',
+            'mock==1.0.1; python_version<"3"',
             'tox==3.8.6',
             'yapf==0.26.0',
         ],

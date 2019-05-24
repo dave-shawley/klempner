@@ -8,9 +8,10 @@ import uuid
 import requests
 
 import klempner.config
-from tests import helpers
 import klempner.errors
 import klempner.url
+
+from tests import helpers
 
 
 class SimpleConsulTests(helpers.EnvironmentMixin, unittest.TestCase):
@@ -53,6 +54,7 @@ class AgentBasedTests(helpers.EnvironmentMixin, unittest.TestCase):
         super(AgentBasedTests, self).tearDown()
         for service_id in list(self._service_ids):
             self.deregister_service(service_id, ignore_error=True)
+        klempner.url.reset_cache()
 
     def register_service(self, meta=None, port=None):
         service_id = str(uuid.uuid4())
@@ -115,3 +117,27 @@ class AgentBasedTests(helpers.EnvironmentMixin, unittest.TestCase):
                 '{scheme}://{Name}.service.{Datacenter}.consul:{port}/'.format(
                     port=port, scheme=scheme, **service_info),
                 klempner.url.build_url(service_info['Name']))
+
+    def test_that_consul_token_is_sent_as_auth_header(self):
+        interceptor = helpers.Interceptor(klempner.url._state.session,
+                                          'prepare_request')
+        self.setenv('CONSUL_HTTP_TOKEN', 'my-token')
+        service_info = self.register_service()
+        expected = 'http://{Name}.service.{Datacenter}.consul:{Port}/'.format(
+            **service_info)
+        self.assertEqual(expected,
+                         klempner.url.build_url(service_info['Name']))
+
+        self.assertEqual(1, interceptor.call_count)
+        self.assertEqual('Bearer my-token',
+                         interceptor.result.headers['Authorization'])
+
+    def test_that_user_agent_is_set(self):
+        interceptor = helpers.Interceptor(klempner.url._state.session,
+                                          'prepare_request')
+        service_info = self.register_service()
+        klempner.url.build_url(service_info['Name'])
+
+        self.assertEqual(1, interceptor.call_count)
+        self.assertEqual('klempner/{}'.format(klempner.version),
+                         interceptor.result.headers['User-Agent'])
