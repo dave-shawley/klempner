@@ -7,24 +7,34 @@ except ImportError:
 
 
 class EnvironmentMixin(unittest.TestCase):
+    """Mix this in to safely manipulate environment variables.
+
+    This mix-in provides methods to manipulate environment variables
+    within the test case and restore the original environment in
+    ``tearDown``.
+
+    """
+
     def setUp(self):
         super(EnvironmentMixin, self).setUp()
-        self._environment = {}
+        self.__environment = {}
 
     def tearDown(self):
         super(EnvironmentMixin, self).tearDown()
-        for name, value in self._environment.items():
+        for name, value in self.__environment.items():
             if value is None:
                 os.environ.pop(name, None)
             else:
                 os.environ[name] = value
 
     def setenv(self, name, value):
-        self._environment.setdefault(name, os.environ.get(name, None))
+        """Set the environment variable named `name` to `value`."""
+        self.__environment.setdefault(name, os.environ.get(name, None))
         os.environ[name] = value
 
     def unsetenv(self, name):
-        self._environment.setdefault(name, os.environ.get(name, None))
+        """Clear the environment variable named `name`."""
+        self.__environment.setdefault(name, os.environ.get(name, None))
         os.environ.pop(name, None)
 
 
