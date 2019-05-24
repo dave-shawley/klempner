@@ -4,10 +4,6 @@ import os
 import random
 import unittest
 import uuid
-try:
-    import unittest.mock as mock
-except ImportError:
-    import mock
 
 import requests
 
@@ -123,26 +119,25 @@ class AgentBasedTests(helpers.EnvironmentMixin, unittest.TestCase):
                 klempner.url.build_url(service_info['Name']))
 
     def test_that_consul_token_is_sent_as_auth_header(self):
-        service_info = self.register_service()
-
-        state = {}
-
-        def prepare_request(request):
-            prepped_request = requests.sessions.Session.prepare_request(
-                klempner.url._state.session, request)
-            state['prepped_request'] = prepped_request
-            return prepped_request
-
-        interceptor = mock.Mock(side_effect=prepare_request)
-        klempner.url._state.session.prepare_request = interceptor
-
+        interceptor = helpers.Interceptor(klempner.url._state.session,
+                                          'prepare_request')
         self.setenv('CONSUL_HTTP_TOKEN', 'my-token')
+        service_info = self.register_service()
         expected = 'http://{Name}.service.{Datacenter}.consul:{Port}/'.format(
             **service_info)
         self.assertEqual(expected,
                          klempner.url.build_url(service_info['Name']))
 
         self.assertEqual(1, interceptor.call_count)
-        prepped_request = state['prepped_request']
         self.assertEqual('Bearer my-token',
-                         prepped_request.headers['Authorization'])
+                         interceptor.result.headers['Authorization'])
+
+    def test_that_user_agent_is_set(self):
+        interceptor = helpers.Interceptor(klempner.url._state.session,
+                                          'prepare_request')
+        service_info = self.register_service()
+        klempner.url.build_url(service_info['Name'])
+
+        self.assertEqual(1, interceptor.call_count)
+        self.assertEqual('klempner/{}'.format(klempner.version),
+                         interceptor.result.headers['User-Agent'])

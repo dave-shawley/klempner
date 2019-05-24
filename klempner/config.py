@@ -3,7 +3,7 @@ import os
 
 import requests
 
-from klempner import compat, errors
+from klempner import compat, errors, version
 
 URL_SCHEME_MAP = {
     5672: 'amqp',  # https://www.rabbitmq.com/uri-spec.html
@@ -163,7 +163,7 @@ def configure_from_environment():
     if new_method == DiscoveryMethod.CONSUL:
         parameters['datacenter'] = require_envvar('CONSUL_DATACENTER')
     elif new_method == DiscoveryMethod.CONSUL_AGENT:
-        headers = {}
+        headers = {'User-Agent': '/'.join([__package__, version])}
         try:
             headers['Authorization'] = 'Bearer {}'.format(
                 os.environ['CONSUL_HTTP_TOKEN'])
