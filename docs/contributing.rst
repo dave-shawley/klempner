@@ -1,5 +1,29 @@
-Developers guide
-================
+Contributing
+============
+If you are reading this, then you might be thinking about contributing some
+changes.  **Thank you!**
+
+The first step is to fork this repository and create a branch to hold your
+work.  This project uses Github Pull Requests to manage contributions so you
+are required to have a `Github account`_ and create a `personal fork`_ of this
+repository.  Once you have an account, a fork, and a branch, it is time to
+start coding.  The following sections explain the common development tasks.
+
+I do have a few expectations about pull requests:
+
+- 100% test coverage is maintained with minimal mock usage
+- all functionality is documented using `sphinx`_
+- code is formatted using `yapf`_ before being committed -- this applies to
+  *each and every* commit
+
+Do not let this scare you off.  I'll help you out if you run into problems
+testing or documenting.  Submit the PR and we can work through the finer
+details.
+
+.. _Github account: https://github.com/join
+.. _personal fork: https://help.github.com/en/articles/fork-a-repo
+.. _sphinx: https://sphinx-doc.org/
+.. _yapf: https://github.com/google/yapf
 
 Setting up your environment
 ---------------------------
@@ -115,3 +139,4 @@ Building documents
 
    (env) $ ./setup.py build_sphinx
 
+The output is in *build/sphinx/html/index.html*.

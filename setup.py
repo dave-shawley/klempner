@@ -9,9 +9,17 @@ setuptools.setup(
     version=klempner.version,
     description='Construct service request URLs',
     long_description=open('README.rst').read(),
-    url='https://github.com/dave-shawley/klempner',
+    url='https://klempner.readthedocs.io/',
     author='Dave Shawley',
     author_email='daveshawley@gmail.com',
+    project_urls={
+        'Builds': 'https://circleci.com/gh/dave-shawley/klempner',
+        'Documentation': 'https://klempner.readthedocs.io/',
+        'Download': 'https://pypi.org/project/klempner/',
+        'Quality Reports': ('https://sonarcloud.io/dashboard'
+                            '?id=dave-shawley_klempner'),
+        'Source Code': 'https://github.com/dave-shawley/klempner',
+    },
     packages=['klempner'],
     install_requires=[
         'cachetools==3.1.0',

@@ -22,6 +22,7 @@ if test ! -s "$working_file"
 then
 	exit 0
 fi
+python_files=`cat "$working_file"`
 
 # Try to make the output "prettier"
 columns=${COLUMNS:-72}
@@ -31,22 +32,8 @@ then
 	fmt=fold
 fi
 
-# Check for unstaged changes to files in the index.
-python_files=`cat "$working_file"`
-changed_files=`git diff --name-only $python_files`
-if test -n "$changed_files"
-then
-	cat|$fmt -w $columns<<-EOF
-		You have unstaged changes to some files in your
-		commit; skipping auto-format. Please stage, stash,
-		or revert these changes. You may find "git stash -k"
-		helpful here.
-
-		Files with unstaged changes: $changed_files
-	EOF
-	exit 1
-fi
-
+# Flake8 is quick and non-modifying so run it over staged
+# and unstaged files
 if command -v flake8 >/dev/null
 then
 	echo 'Checking staged Python files with PEP8 violations ...'
@@ -54,8 +41,8 @@ then
 	if ! flake8 --output-file="$working_file" $python_files
 	then
 		cat|$fmt -w $columns<<-EOF
-			PEP8 violations in staged files. Please review and
-			stage the changes.
+			PEP8 violations in staged files. Please review,
+			correct, and try again.
 
 		EOF
 		cat "$working_file"
@@ -67,18 +54,41 @@ fi
 
 if command -v yapf >/dev/null
 then
-	echo 'Checking staged Python files for format violations ...'
-	yapf -i -r $python_files
+	# Yapf is going to modify things and we don't want to clobber
+	# unstaged changes to files in the index.
 	changed_files=`git diff --name-only $python_files`
 	if test -n "$changed_files"
 	then
-		cat|$fmt -w $columns<<-EOF
-			Reformatted staged files that were in violation of
-			style policy.. Please review and stage the changes.
+		# check everything that has changed ... if there are not
+		# any failures, then we are good to go.  Otherwise, fail
+		if ! yapf -d -r $python_files
+		then
+			cat|$fmt -w $columns<<-EOF
+				You have unstaged changes to some files in your
+				commit; skipping auto-format. Please stage, stash,
+				or revert these changes. You may find "git stash -k"
+				helpful here.
 
-			Files updated: $changed_files"
-		EOF
-		exit 1
+				Files with unstaged changes: $changed_files
+			EOF
+			exit 1
+		fi
+	fi
+
+	echo 'Checking staged Python files for format violations ...'
+	if ! yapf -i -r $python_files
+	then
+		changed_files=`git diff --name-only $python_files`
+		if test -n "$changed_files"
+		then
+			cat|$fmt -w $columns<<-EOF
+				Reformatted staged files that were in violation of
+				style policy.. Please review and stage the changes.
+
+				Files updated: $changed_files
+			EOF
+			exit 1
+		fi
 	fi
 else
 	echo 'yapf not found, code changes could violate style.'

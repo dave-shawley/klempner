@@ -9,8 +9,8 @@ extensions = ['sphinx.ext.autodoc']
 
 html_sidebars = {
     '**': [
-        'about.html', 'navigation.html', 'relations.html', 'localtoc.html',
-        'searchbox.html', 'sourcelink.html'
+        'about.html', 'navigation.html', 'relations.html', 'searchbox.html',
+        'sourcelink.html'
     ],
 }
 html_static_path = ['.']

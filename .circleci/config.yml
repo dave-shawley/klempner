@@ -164,9 +164,14 @@ jobs:
       - run:
           name: Upload coverage to coveralls
           command: |
-            . ~/workspace/py3/bin/activate
-            cp ~/workspace/.coverage .
-            coveralls
+            if test -n "$COVERALLS_REPO_TOKEN"
+            then
+              . ~/workspace/py3/bin/activate
+              cp ~/workspace/.coverage .
+              coveralls
+            else
+              echo 'COVERALLS_REPO_TOKEN is not defined, skipping upload.'
+            fi
       - run:
           name: Copy reports for sonarqube
           command: |
@@ -178,11 +183,8 @@ jobs:
               wget https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-3.2.0.1227-linux.zip
               unzip sonar-scanner-cli-3.2.0.1227-linux.zip
               export SONAR_SCANNER_OPTS="-Xmx2048m"
-              if test -z "$CI_PULL_REQUEST"
+              if test -n "$CI_PULL_REQUEST"
               then
-                ./sonar-scanner-3.2.0.1227-linux/bin/sonar-scanner \
-                  -Dsonar.login=$SONARQUBE_TOKEN
-              else
                 pr_key=`echo $CI_PULL_REQUEST | sed 's@^.*/\([^/]*\)$@\1@'`
                 ./sonar-scanner-3.2.0.1227-linux/bin/sonar-scanner \
                   -Dsonar.login=$SONARQUBE_TOKEN \
@@ -191,6 +193,17 @@ jobs:
                   -Dsonar.pullrequest.provider=GitHub \
                   -Dsonar.pullrequest.github.repository=dave-shawley/klempner \
                   -Dsonar.pullrequest.key=$pr_key
+              else
+                git_version=`git describe --tags`
+                if echo $git_version | grep -q '^[^-]*$'
+                then
+                  version=$git_version
+                else
+                  version=`echo $git_version | sed -E -e 's/^([^-]*)(-([0-9]*)(-g(.*))?)?$/\1.post\3+\5/'`
+                fi
+                ./sonar-scanner-3.2.0.1227-linux/bin/sonar-scanner \
+                  -Dsonar.login=$SONARQUBE_TOKEN \
+                  -Dsonar.projectVersion=$version
               fi
             else
               echo 'SONARQUBE_TOKEN is not defined, skipping upload.'
