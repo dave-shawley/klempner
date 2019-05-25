@@ -1,11 +1,12 @@
 Release history
 ===============
 
-Next Release
-------------
-- :compare:`0.0.2...master`
+0.0.3 (25 May 2019)
+-------------------
+- :compare:`0.0.2...0.0.3`
 - Add support for the :envvar:`CONSUL_HTTP_TOKEN` environment variable.
 - Set ``User-Agent`` when sending requests to Consul.
+- Rework documentation.
 
 0.0.2 (19 May 2019)
 -------------------
