@@ -2,10 +2,6 @@ from __future__ import unicode_literals
 
 import logging
 import os
-try:
-    from urllib.parse import urlsplit, urlunsplit
-except ImportError:
-    from urlparse import urlsplit, urlunsplit
 
 import requests.adapters
 
@@ -45,10 +41,10 @@ class State(object):
         sentinel = object()
         service_info = self.discovery_cache.get(service, sentinel)
         if service_info is sentinel:
-            parsed = urlsplit(os.environ['CONSUL_AGENT_URL'])
-            url = urlunsplit(
+            parsed = compat.urlparse(os.environ['CONSUL_AGENT_URL'])
+            url = compat.urlunparse(
                 (parsed[0], parsed[1],
-                 '/v1/catalog/service/{0}'.format(service), '', ''))
+                 '/v1/catalog/service/{0}'.format(service), '', '', ''))
             headers = {}
             if os.environ.get('CONSUL_HTTP_TOKEN'):
                 headers['Authorization'] = 'Bearer {0}'.format(
@@ -168,7 +164,7 @@ def _write_network_portion(buf, service):
 
         if port is not None and port.startswith('tcp://'):
             # special case for docker's ip:port format
-            parts = urlsplit(port)
+            parts = compat.urlparse(port)
             port = str(parts.port)
             if host is None:
                 host = parts.hostname

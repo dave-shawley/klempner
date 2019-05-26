@@ -7,6 +7,7 @@ import uuid
 
 import requests
 
+import klempner.compat
 import klempner.config
 import klempner.errors
 import klempner.url
@@ -32,12 +33,12 @@ class AgentBasedTests(helpers.EnvironmentMixin, unittest.TestCase):
         cls.session = requests.Session()
 
         try:
-            parsed = klempner.url.urlsplit(os.environ['CONSUL_AGENT_URL'])
+            parsed = klempner.compat.urlparse(os.environ['CONSUL_AGENT_URL'])
         except KeyError:
             raise unittest.SkipTest('Consul agent is not present')
 
-        cls.agent_url = klempner.url.urlunsplit((parsed.scheme, parsed.netloc,
-                                                 '/v1/agent', '', ''))
+        cls.agent_url = klempner.compat.urlunparse(
+            (parsed.scheme, parsed.netloc, '/v1/agent', '', '', ''))
         response = cls.session.get(cls.agent_url + '/self')
         response.raise_for_status()
         body = response.json()
@@ -57,11 +58,13 @@ class AgentBasedTests(helpers.EnvironmentMixin, unittest.TestCase):
             self.deregister_service(service_id, ignore_error=True)
         klempner.url.reset_cache()
 
-    def register_service(self, meta=None, port=None):
+    def register_service(self, meta=None, port=None, service_name=None):
         service_id = str(uuid.uuid4())
+        if service_name is None:
+            service_name = 's' + service_id.replace('-', '').lower()
         service_details = {
             'ID': service_id,
-            'Name': 's' + service_id.replace('-', '').lower(),
+            'Name': service_name,
             'Address': '10.0.0.1',
             'Port': port or random.randint(10000, 20000),
             'Datacenter': self.datacenter,
@@ -142,3 +145,11 @@ class AgentBasedTests(helpers.EnvironmentMixin, unittest.TestCase):
         self.assertEqual(1, interceptor.call_count)
         self.assertEqual('klempner/{}'.format(klempner.version),
                          interceptor.result.headers['User-Agent'])
+
+    def test_that_service_name_is_quoted(self):
+        service_info = self.register_service(service_name='my service')
+        self.assertEqual(
+            'http://{Name}.service.{Datacenter}.consul:{Port}/'.format(
+                **service_info),
+            klempner.url.build_url(service_info['Name']),
+        )
