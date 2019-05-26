@@ -61,6 +61,21 @@ class State(object):
         self.session.close()
         self.session = self._create_session()
 
+    def lookup_consul_service(self, service):
+        sentinel = object()
+        service_info = self.discovery_cache.get(service, sentinel)
+        if service_info is sentinel:
+            response = self.session.get(
+                'consul://v1/catalog/service/{0}'.format(service))
+            response.raise_for_status()
+            body = response.json()
+            if body:
+                service_info = body[0]
+                self.discovery_cache[service] = service_info
+            else:
+                service_info = None
+        return service_info
+
     @staticmethod
     def _create_session():
         session = requests.Session()
@@ -139,26 +154,20 @@ def _write_network_portion(buf, service):
         buf.write(parameters['datacenter'])
         buf.write('.consul')
     elif discovery_style == config.DiscoveryMethod.CONSUL_AGENT:
-        sentinel = object()
-        body = _state.discovery_cache.get(service, sentinel)
-        if body is sentinel:
-            response = _state.session.get(
-                'consul://v1/catalog/service/{0}'.format(service))
-            response.raise_for_status()
-            body = response.json()
-            _state.discovery_cache[service] = body
-
-        if not body:  # service does not exist in consul
+        service_info = _state.lookup_consul_service(service)
+        if not service_info:  # service does not exist in consul
             raise errors.ServiceNotFoundError(service)
         else:
             calculated_scheme = config.URL_SCHEME_MAP.get(
-                body[0]['ServicePort'], 'http')
-            meta = body[0].get('ServiceMeta', {})
+                service_info['ServicePort'], 'http')
+            meta = service_info.get('ServiceMeta', {})
             buf.write(meta.get('protocol', calculated_scheme))
             buf.write('://')
-            buf.write(
-                '{ServiceName}.service.{Datacenter}.consul'.format(**body[0]))
-            buf.write(':' + str(body[0]['ServicePort']))
+            buf.write(service_info['ServiceName'])
+            buf.write('.service.')
+            buf.write(service_info['Datacenter'])
+            buf.write('.consul:')
+            buf.write(str(service_info['ServicePort']))
     elif discovery_style == config.DiscoveryMethod.K8S:
         buf.write('http://')
         buf.write(service + '.')
