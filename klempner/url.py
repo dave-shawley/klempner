@@ -21,26 +21,6 @@ PATH_SAFE_CHARS = ":@!$&'()*+,;=-._~"
 """Safe characters for path elements."""
 
 
-class ConsulAgentAdapter(requests.adapters.HTTPAdapter):
-    """Adapter that sends `consul://` requests to a consul agent."""
-
-    def send(self, request, stream=False, timeout=None, verify=True, cert=None,
-             proxies=None):
-        _, host, path, params, query, fragment = compat.urlparse(request.url)
-        path = host + path
-        request.url = compat.urlunparse(
-            ('http', os.environ['CONSUL_HTTP_ADDR'], path, params, query,
-             fragment))
-        return super(ConsulAgentAdapter, self).send(
-            request, stream=stream, timeout=timeout, verify=verify, cert=cert,
-            proxies=proxies)  # yapf: disable
-
-    def add_headers(self, request, **kwargs):
-        if os.environ.get('CONSUL_HTTP_TOKEN'):
-            request.headers['Authorization'] = 'Bearer {0}'.format(
-                os.environ['CONSUL_HTTP_TOKEN'])
-
-
 class State(object):
     """Module state.
 
@@ -65,8 +45,15 @@ class State(object):
         sentinel = object()
         service_info = self.discovery_cache.get(service, sentinel)
         if service_info is sentinel:
-            response = self.session.get(
-                'consul://v1/catalog/service/{0}'.format(service))
+            url = 'http://{0}/v1/catalog/service/{1}'.format(
+                os.environ['CONSUL_HTTP_ADDR'], service)
+
+            headers = {}
+            if os.environ.get('CONSUL_HTTP_TOKEN'):
+                headers['Authorization'] = 'Bearer {0}'.format(
+                    os.environ['CONSUL_HTTP_TOKEN'])
+
+            response = self.session.get(url, headers=headers)
             response.raise_for_status()
             body = response.json()
             if body:
@@ -74,12 +61,12 @@ class State(object):
                 self.discovery_cache[service] = service_info
             else:
                 service_info = None
+
         return service_info
 
     @staticmethod
     def _create_session():
         session = requests.Session()
-        session.mount('consul://', ConsulAgentAdapter())
         session.headers['User-Agent'] = '/'.join([__package__, version])
         return session
 
