@@ -32,11 +32,12 @@ class AgentBasedTests(helpers.EnvironmentMixin, unittest.TestCase):
         cls.session = requests.Session()
 
         try:
-            cls.agent_url = 'http://{0}/v1/agent'.format(
-                os.environ['CONSUL_HTTP_ADDR'])
+            parsed = klempner.url.urlsplit(os.environ['CONSUL_AGENT_URL'])
         except KeyError:
             raise unittest.SkipTest('Consul agent is not present')
 
+        cls.agent_url = klempner.url.urlunsplit((parsed.scheme, parsed.netloc,
+                                                 '/v1/agent', '', ''))
         response = cls.session.get(cls.agent_url + '/self')
         response.raise_for_status()
         body = response.json()

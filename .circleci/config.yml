@@ -120,7 +120,7 @@ jobs:
   test-python-2:
     executor: python-2
     environment:
-      CONSUL_HTTP_ADDR: 127.0.0.1:8500
+      CONSUL_AGENT_URL: http://127.0.0.1:8500
     steps:
       - checkout
       - create-workspace:
@@ -134,7 +134,7 @@ jobs:
   test-python-3:
     executor: python-3
     environment:
-      CONSUL_HTTP_ADDR: 127.0.0.1:8500
+      CONSUL_AGENT_URL: http://127.0.0.1:8500
     steps:
       - checkout
       - create-workspace:

@@ -3,9 +3,9 @@ from __future__ import unicode_literals
 import logging
 import os
 try:
-    from urllib.parse import urlsplit
+    from urllib.parse import urlsplit, urlunsplit
 except ImportError:
-    from urlparse import urlsplit
+    from urlparse import urlsplit, urlunsplit
 
 import requests.adapters
 
@@ -45,9 +45,10 @@ class State(object):
         sentinel = object()
         service_info = self.discovery_cache.get(service, sentinel)
         if service_info is sentinel:
-            url = 'http://{0}/v1/catalog/service/{1}'.format(
-                os.environ['CONSUL_HTTP_ADDR'], service)
-
+            parsed = urlsplit(os.environ['CONSUL_AGENT_URL'])
+            url = urlunsplit(
+                (parsed[0], parsed[1],
+                 '/v1/catalog/service/{0}'.format(service), '', ''))
             headers = {}
             if os.environ.get('CONSUL_HTTP_TOKEN'):
                 headers['Authorization'] = 'Bearer {0}'.format(

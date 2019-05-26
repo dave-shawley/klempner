@@ -169,8 +169,9 @@ def configure_from_environment():
                 os.environ['CONSUL_HTTP_TOKEN'])
         except KeyError:
             pass
-        url = compat.urlunparse(('http', require_envvar('CONSUL_HTTP_ADDR'),
-                                 '/v1/agent/self', None, None, None))
+        parsed = compat.urlparse(require_envvar('CONSUL_AGENT_URL'))
+        url = compat.urlunparse((parsed[0], parsed[1], '/v1/agent/self', None,
+                                 None, None))
         response = requests.get(url, headers=headers)
         response.raise_for_status()
         body = response.json()

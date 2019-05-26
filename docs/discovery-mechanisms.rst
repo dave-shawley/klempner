@@ -127,13 +127,13 @@ If the protocol is included in the service metadata, then it is used as the
 *scheme* for the URL.  Otherwise, the port number is mapped through the
 :data:`~klempner.config.URL_SCHEME_MAP` to determine the scheme to apply.
 
-The consul agent endpoint is configured by the :envvar:`CONSUL_HTTP_ADDR`
+The consul agent endpoint is configured by the :envvar:`CONSUL_AGENT_URL`
 environment variable.
 
 .. code-block:: python
    :caption: Consul agent lookup
 
-   os.environ['CONSUL_HTTP_ADDR'] = 'http://127.0.0.1:8500'
+   os.environ['CONSUL_AGENT_URL'] = 'http://127.0.0.1:8500'
 
    os.environ['KLEMPNER_DISCOVERY'] = 'consul+agent'
    url = klempner.url.build_url('account')

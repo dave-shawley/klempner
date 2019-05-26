@@ -1,6 +1,12 @@
 Release history
 ===============
 
+Next Release
+------------
+- :compare:`0.0.3...master`
+- Add support for using https with consul by replacing ``CONSUL_HTTP_ADDR``
+  with :envvar:`CONSUL_AGENT_URL`
+
 0.0.3 (25 May 2019)
 -------------------
 - :compare:`0.0.2...0.0.3`
