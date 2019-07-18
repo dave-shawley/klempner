@@ -65,6 +65,12 @@ class DiscoveryMethod(object):
     DEFAULT = SIMPLE
 
     UNSET = object()
+    """The initial library state.
+
+    This can be used to reset the library internals by calling
+    :func:`.configure` with `UNSET` as the discovery method.
+
+    """
 
     AVAILABLE = (CONSUL, CONSUL_AGENT, ENV_VARS, K8S, SIMPLE, UNSET)
 
@@ -93,7 +99,15 @@ def configure(discovery_method, **parameters):
     :raises: :exc:`klempner.errors.ConfigurationError` if a required
         parameter is not provided
 
+    If `discovery_method` is :attr:`.DiscoveryMethod.UNSET`, then the
+    current configuration is cleared and the library is reset to an
+    unconfigured state.  This means that the next call to
+    :func:`~klempner.url.build_url` will configure the library based
+    on the current environment variables.
+
     """
+    from klempner import url  # late import to avoid circular dependency
+
     logger = logging.getLogger(__package__).getChild('configure')
 
     def require_parameter(name):
@@ -113,11 +127,15 @@ def configure(discovery_method, **parameters):
         incoming_parameters['datacenter'] = require_parameter('datacenter')
     elif discovery_method == DiscoveryMethod.K8S:
         incoming_parameters['namespace'] = require_parameter('namespace')
+    elif discovery_method == DiscoveryMethod.UNSET:
+        url._reset_cache()
     elif discovery_method not in DiscoveryMethod.AVAILABLE:
         raise errors.ConfigurationError('discovery_style', discovery_method)
 
     global _discovery_method, _discovery_parameters
-    if _discovery_method is DiscoveryMethod.UNSET:
+    if discovery_method is DiscoveryMethod.UNSET:
+        logger.info('resetting/clearing configuration values')
+    elif _discovery_method is DiscoveryMethod.UNSET:
         logger.info('setting discovery method to %r with parameters=%r',
                     discovery_method, incoming_parameters)
     else:

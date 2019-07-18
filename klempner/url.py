@@ -71,20 +71,6 @@ class State(object):
 _state = State()
 
 
-def reset_cache():
-    """Reset internal caches.
-
-    Applications MUST call this function if they have changed discovery
-    configuration details or suspect that they may have changed.  This
-    should not happen often since the discovery configuration is based
-    primarily on environment variables which are not modifiable from
-    outside of the process.
-
-    """
-    config.reset()
-    _state.clear()
-
-
 def build_url(service, *path, **query):
     """Build a URL that targets `service`.
 
@@ -119,6 +105,19 @@ def build_url(service, *path, **query):
             for name, value in query_tuples))
 
     return buf.getvalue()
+
+
+def _reset_cache():
+    """Reset internal caches.
+
+    Applications MUST call this function if they have changed discovery
+    configuration details or suspect that they may have changed.  This
+    should not happen often since the discovery configuration is based
+    primarily on environment variables which are not modifiable from
+    outside of the process.
+
+    """
+    _state.clear()
 
 
 def _write_network_portion(buf, service):

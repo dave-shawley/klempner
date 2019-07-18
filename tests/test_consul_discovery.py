@@ -17,7 +17,7 @@ from tests import helpers
 
 class SimpleConsulTests(helpers.EnvironmentMixin, unittest.TestCase):
     def test_that_consul_datacenter_environment_sets_datacenter_name(self):
-        klempner.url.reset_cache()
+        klempner.config.configure(klempner.config.DiscoveryMethod.UNSET)
         self.setenv('KLEMPNER_DISCOVERY',
                     klempner.config.DiscoveryMethod.CONSUL)
         env = str(uuid.uuid4())
@@ -46,7 +46,7 @@ class AgentBasedTests(helpers.EnvironmentMixin, unittest.TestCase):
 
     def setUp(self):
         super(AgentBasedTests, self).setUp()
-        klempner.url.reset_cache()
+        klempner.config.configure(klempner.config.DiscoveryMethod.UNSET)
         self.setenv('KLEMPNER_DISCOVERY',
                     klempner.config.DiscoveryMethod.CONSUL_AGENT)
         self.unsetenv('CONSUL_DATACENTER')
@@ -56,7 +56,7 @@ class AgentBasedTests(helpers.EnvironmentMixin, unittest.TestCase):
         super(AgentBasedTests, self).tearDown()
         for service_id in list(self._service_ids):
             self.deregister_service(service_id, ignore_error=True)
-        klempner.url.reset_cache()
+        klempner.config.configure(klempner.config.DiscoveryMethod.UNSET)
 
     def register_service(self, meta=None, port=None, service_name=None):
         service_id = str(uuid.uuid4())

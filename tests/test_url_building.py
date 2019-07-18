@@ -2,13 +2,14 @@ from __future__ import unicode_literals
 
 import unittest
 
+import klempner.config
 import klempner.url
 
 
 class QueryParameterTests(unittest.TestCase):
     def setUp(self):
         super(QueryParameterTests, self).setUp()
-        klempner.url.reset_cache()
+        klempner.config.configure(klempner.config.DiscoveryMethod.UNSET)
 
     def test_that_query_parameters_are_encoded(self):
         url = klempner.url.build_url('some-service', arg1='value',
@@ -43,7 +44,7 @@ class QueryParameterTests(unittest.TestCase):
 class PathTests(unittest.TestCase):
     def setUp(self):
         super(PathTests, self).setUp()
-        klempner.url.reset_cache()
+        klempner.config.configure(klempner.config.DiscoveryMethod.UNSET)
 
     def test_that_path_elements_are_quoted(self):
         url = klempner.url.build_url(

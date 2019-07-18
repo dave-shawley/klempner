@@ -11,7 +11,7 @@ import klempner.url
 class SimpleK8sTests(helpers.EnvironmentMixin, unittest.TestCase):
     def setUp(self):
         super(SimpleK8sTests, self).setUp()
-        klempner.url.reset_cache()
+        klempner.config.configure(klempner.config.DiscoveryMethod.UNSET)
         self.setenv('KLEMPNER_DISCOVERY', klempner.config.DiscoveryMethod.K8S)
         self.setenv('KUBERNETES_NAMESPACE', 'development')
 
