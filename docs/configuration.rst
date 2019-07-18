@@ -36,16 +36,17 @@ The library can be configured based on the environment by calling the
       - :ref:`kubernetes-discovery-method`
       - :ref:`simple-discovery-method`
 
+.. envvar:: CONSUL_AGENT_URL
+
+   Configures the Consul agent URL used by the
+   :ref:`consul-agent-discovery-method` method.  Note that the path, query,
+   and fragment portions of the URL are ignored.
+
 .. envvar:: CONSUL_DATACENTER
 
    Configures the datacenter used for Consul-based discovery methods.  This
    variable is required if :envvar:`KLEMPNER_DISCOVERY` is set to
    :ref:`consul-discovery-method`.
-
-.. envvar:: CONSUL_HTTP_ADDR
-
-   Configures the Consul agent address and port used by the
-   :ref:`consul-agent-discovery-method` method.
 
 .. envvar:: CONSUL_HTTP_TOKEN
 

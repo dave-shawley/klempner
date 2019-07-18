@@ -2,10 +2,6 @@ from __future__ import unicode_literals
 
 import logging
 import os
-try:
-    from urllib.parse import urlsplit
-except ImportError:
-    from urlparse import urlsplit
 
 import requests.adapters
 
@@ -19,26 +15,6 @@ from klempner import compat, config, errors, version
 
 PATH_SAFE_CHARS = ":@!$&'()*+,;=-._~"
 """Safe characters for path elements."""
-
-
-class ConsulAgentAdapter(requests.adapters.HTTPAdapter):
-    """Adapter that sends `consul://` requests to a consul agent."""
-
-    def send(self, request, stream=False, timeout=None, verify=True, cert=None,
-             proxies=None):
-        _, host, path, params, query, fragment = compat.urlparse(request.url)
-        path = host + path
-        request.url = compat.urlunparse(
-            ('http', os.environ['CONSUL_HTTP_ADDR'], path, params, query,
-             fragment))
-        return super(ConsulAgentAdapter, self).send(
-            request, stream=stream, timeout=timeout, verify=verify, cert=cert,
-            proxies=proxies)  # yapf: disable
-
-    def add_headers(self, request, **kwargs):
-        if os.environ.get('CONSUL_HTTP_TOKEN'):
-            request.headers['Authorization'] = 'Bearer {0}'.format(
-                os.environ['CONSUL_HTTP_TOKEN'])
 
 
 class State(object):
@@ -61,29 +37,38 @@ class State(object):
         self.session.close()
         self.session = self._create_session()
 
+    def lookup_consul_service(self, service):
+        sentinel = object()
+        service_info = self.discovery_cache.get(service, sentinel)
+        if service_info is sentinel:
+            parsed = compat.urlparse(os.environ['CONSUL_AGENT_URL'])
+            url = compat.urlunparse(
+                (parsed[0], parsed[1],
+                 '/v1/catalog/service/{0}'.format(service), '', '', ''))
+            headers = {}
+            if os.environ.get('CONSUL_HTTP_TOKEN'):
+                headers['Authorization'] = 'Bearer {0}'.format(
+                    os.environ['CONSUL_HTTP_TOKEN'])
+
+            response = self.session.get(url, headers=headers)
+            response.raise_for_status()
+            body = response.json()
+            if body:
+                service_info = body[0]
+                self.discovery_cache[service] = service_info
+            else:
+                service_info = None
+
+        return service_info
+
     @staticmethod
     def _create_session():
         session = requests.Session()
-        session.mount('consul://', ConsulAgentAdapter())
         session.headers['User-Agent'] = '/'.join([__package__, version])
         return session
 
 
 _state = State()
-
-
-def reset_cache():
-    """Reset internal caches.
-
-    Applications MUST call this function if they have changed discovery
-    configuration details or suspect that they may have changed.  This
-    should not happen often since the discovery configuration is based
-    primarily on environment variables which are not modifiable from
-    outside of the process.
-
-    """
-    config.reset()
-    _state.clear()
 
 
 def build_url(service, *path, **query):
@@ -122,6 +107,19 @@ def build_url(service, *path, **query):
     return buf.getvalue()
 
 
+def _reset_cache():
+    """Reset internal caches.
+
+    Applications MUST call this function if they have changed discovery
+    configuration details or suspect that they may have changed.  This
+    should not happen often since the discovery configuration is based
+    primarily on environment variables which are not modifiable from
+    outside of the process.
+
+    """
+    _state.clear()
+
+
 def _write_network_portion(buf, service):
     """Add the discovered network portion to `buf`.
 
@@ -139,26 +137,20 @@ def _write_network_portion(buf, service):
         buf.write(parameters['datacenter'])
         buf.write('.consul')
     elif discovery_style == config.DiscoveryMethod.CONSUL_AGENT:
-        sentinel = object()
-        body = _state.discovery_cache.get(service, sentinel)
-        if body is sentinel:
-            response = _state.session.get(
-                'consul://v1/catalog/service/{0}'.format(service))
-            response.raise_for_status()
-            body = response.json()
-            _state.discovery_cache[service] = body
-
-        if not body:  # service does not exist in consul
+        service_info = _state.lookup_consul_service(service)
+        if not service_info:  # service does not exist in consul
             raise errors.ServiceNotFoundError(service)
         else:
             calculated_scheme = config.URL_SCHEME_MAP.get(
-                body[0]['ServicePort'], 'http')
-            meta = body[0].get('ServiceMeta', {})
+                service_info['ServicePort'], 'http')
+            meta = service_info.get('ServiceMeta', {})
             buf.write(meta.get('protocol', calculated_scheme))
             buf.write('://')
-            buf.write(
-                '{ServiceName}.service.{Datacenter}.consul'.format(**body[0]))
-            buf.write(':' + str(body[0]['ServicePort']))
+            buf.write(service_info['ServiceName'])
+            buf.write('.service.')
+            buf.write(service_info['Datacenter'])
+            buf.write('.consul:')
+            buf.write(str(service_info['ServicePort']))
     elif discovery_style == config.DiscoveryMethod.K8S:
         buf.write('http://')
         buf.write(service + '.')
@@ -171,7 +163,7 @@ def _write_network_portion(buf, service):
 
         if port is not None and port.startswith('tcp://'):
             # special case for docker's ip:port format
-            parts = urlsplit(port)
+            parts = compat.urlparse(port)
             port = str(parts.port)
             if host is None:
                 host = parts.hostname

@@ -10,7 +10,7 @@ import klempner.url
 class SimpleEnvironmentTests(helpers.EnvironmentMixin, unittest.TestCase):
     def setUp(self):
         super(SimpleEnvironmentTests, self).setUp()
-        klempner.url.reset_cache()
+        klempner.config.configure(klempner.config.DiscoveryMethod.UNSET)
         self.setenv('KLEMPNER_DISCOVERY',
                     klempner.config.DiscoveryMethod.ENV_VARS)
 

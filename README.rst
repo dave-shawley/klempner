@@ -80,7 +80,7 @@ The scheme is derived by looking up the port in the
 ``klempner.config.URL_SCHEME_MAP`` and using the result if the lookup
 succeeds.
 
-The library will connect to the agent specified by the ``CONSUL_HTTP_ADDR``
+The library will connect to the agent specified by the ``CONSUL_AGENT_URL``
 environment variable.  If the environment variable is not specified, then the
 agent listening on the localhost will be used.
 

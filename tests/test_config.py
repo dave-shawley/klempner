@@ -65,18 +65,18 @@ class ConfigByEnvironTests(tests.helpers.EnvironmentMixin, unittest.TestCase):
                          context.exception.configuration_name)
         self.assertIs(None, context.exception.configuration_value)
 
-    def test_that_consul_agent_discovery_without_http_addr_fails(self):
+    def test_that_consul_agent_discovery_without_agent_url_fails(self):
         self.setenv('KLEMPNER_DISCOVERY', config.DiscoveryMethod.CONSUL_AGENT)
-        self.unsetenv('CONSUL_HTTP_ADDR')
+        self.unsetenv('CONSUL_AGENT_URL')
         with self.assertRaises(errors.ConfigurationError) as context:
             config.configure_from_environment()
-        self.assertEqual('CONSUL_HTTP_ADDR',
+        self.assertEqual('CONSUL_AGENT_URL',
                          context.exception.configuration_name)
         self.assertIs(None, context.exception.configuration_value)
 
     def test_that_consul_agent_discovery_uses_consul_token(self):
         self.setenv('KLEMPNER_DISCOVERY', config.DiscoveryMethod.CONSUL_AGENT)
-        self.setenv('CONSUL_HTTP_ADDR', '127.0.0.1:1')
+        self.setenv('CONSUL_AGENT_URL', 'http://127.0.0.1:1')
         self.setenv('CONSUL_HTTP_TOKEN', 'some-token')
         with mock.patch('klempner.config.requests.get') as requests_get:
             response = mock.Mock()
@@ -91,7 +91,7 @@ class ConfigByEnvironTests(tests.helpers.EnvironmentMixin, unittest.TestCase):
         self.assertEqual('bearer some-token',
                          kwargs['headers']['Authorization'].lower())
 
-    @unittest.skipUnless('CONSUL_HTTP_ADDR' in os.environ,
+    @unittest.skipUnless('CONSUL_AGENT_URL' in os.environ,
                          'Consul agent is not present')
     def test_that_consul_agent_discovery_includes_user_agent(self):
         self.setenv('KLEMPNER_DISCOVERY', config.DiscoveryMethod.CONSUL_AGENT)

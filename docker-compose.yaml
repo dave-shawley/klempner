@@ -12,7 +12,7 @@ services:
     working_dir: /source
     command: ./ci/docker-test
     environment:
-      CONSUL_HTTP_ADDR: consul:8500
+      CONSUL_AGENT_URL: http://consul:8500
     volumes:
       - .:/source
     depends_on:
