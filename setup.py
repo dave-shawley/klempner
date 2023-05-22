@@ -23,7 +23,7 @@ setuptools.setup(
     packages=['klempner'],
     install_requires=[
         'cachetools==3.1.0',
-        'requests==2.21.0',
+        'requests==2.31.0',
     ],
     tests_require=[
         'coverage==4.5.3',
